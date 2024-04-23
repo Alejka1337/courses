@@ -2,7 +2,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased, joinedload
 
 from src.enums import CourseStatus, LessonType
-from src.models import CourseIconOrm, CourseOrm, StudentCourseAssociation, StudentLessonOrm, TestOrm, TestQuestionOrm
+from src.models import (CourseIconOrm, CourseOrm, StudentCourseAssociation, StudentLessonOrm, TestOrm, TestQuestionOrm,
+                        ExamQuestionOrm, ExamOrm)
+
 from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
 
 
@@ -50,6 +52,17 @@ def select_course_by_id_db(db: Session, course_id: int, student_id: int = None):
               .options(joinedload(CourseOrm.icons))
               .options(joinedload(CourseOrm.lessons))
               .first())
+
+    for lesson in course.lessons:
+        if lesson.type == LessonType.test.value:
+            test_id = db.query(TestOrm.id).filter(TestOrm.lesson_id == lesson.id).scalar()
+            count_questions = db.query(TestQuestionOrm).filter(TestQuestionOrm.test_id == test_id).count()
+            setattr(lesson, "count_questions", count_questions)
+
+        elif lesson.type == LessonType.exam.value:
+            exam_id = db.query(ExamOrm.id).filter(ExamOrm.lesson_id == lesson.id).scalar()
+            count_questions = db.query(ExamQuestionOrm).filter(ExamQuestionOrm.exam_id == exam_id).count()
+            setattr(lesson, "count_questions", count_questions)
 
     if student_id:
         student_course = (db.query(StudentCourseAssociation.grade.label("grade"),
