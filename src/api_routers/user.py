@@ -38,7 +38,8 @@ async def create_user(
     student = select_student_by_email(db=db, email=form_data.email)
     if student:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"User with email {form_data.email} does exist"
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"User with email {form_data.email} does exist"
         )
 
     user = select_user_by_username(db=db, username=form_data.username)
@@ -167,6 +168,9 @@ async def activate_user(
         db: Session = Depends(get_db)
 ):
     user = select_user_by_username(db=db, username=activate_data.username)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invalid username")
+
     db_code = select_activate_code(db=db, user_id=user.id)
 
     if activate_data.code == db_code:
