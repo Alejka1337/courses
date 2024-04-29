@@ -3,8 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from src.crud.exam import (create_exam_answer_db, create_exam_answer_with_photo_db, create_exam_matching_db,
-                           create_exam_question_db, create_exam_question_with_photo_db)
+from src.crud.exam import ExamRepository
+from src.enums import QuestionTypeOption
 from src.models import UserOrm
 from src.schemas.test import TestQuestionBase
 from src.session import get_db
@@ -21,10 +21,16 @@ async def create_exam(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == "moder":
+        repository = ExamRepository(db=db)
+
         for question_data in data:
-            if question_data.q_type in ["boolean", "test", "multiple_choice"]:
-                question = create_exam_question_db(
-                    db=db,
+            if (question_data.q_type in [
+                QuestionTypeOption.boolean.value,
+                QuestionTypeOption.test.value,
+                QuestionTypeOption.multiple_choice.value
+            ]):
+
+                question_id = repository.create_exam_question(
                     q_text=question_data.q_text,
                     q_number=question_data.q_number,
                     q_type=question_data.q_type,
@@ -34,16 +40,14 @@ async def create_exam(
                 )
 
                 for answer_data in question_data.answers:
-                    create_exam_answer_db(
-                        db=db,
-                        question_id=question.id,
+                    repository.create_exam_answer(
+                        question_id=question_id,
                         a_text=answer_data.a_text,
                         is_correct=answer_data.is_correct
                     )
 
-            elif question_data.q_type == "answer_with_photo":
-                question = create_exam_question_db(
-                    db=db,
+            elif question_data.q_type == QuestionTypeOption.answer_with_photo.value:
+                question_id = repository.create_exam_question(
                     q_text=question_data.q_text,
                     q_number=question_data.q_number,
                     q_type=question_data.q_type,
@@ -53,17 +57,15 @@ async def create_exam(
                 )
 
                 for answer_data in question_data.answers:
-                    create_exam_answer_with_photo_db(
-                        db=db,
-                        question_id=question.id,
+                    repository.create_exam_answer(
+                        question_id=question_id,
                         a_text=answer_data.a_text,
                         is_correct=answer_data.is_correct,
                         image_path=answer_data.image_path
                     )
 
-            elif question_data.q_type == "question_with_photo":
-                question = create_exam_question_with_photo_db(
-                    db=db,
+            elif question_data.q_type == QuestionTypeOption.question_with_photo.value:
+                question_id = repository.create_exam_question(
                     q_text=question_data.q_text,
                     q_number=question_data.q_number,
                     q_type=question_data.q_type,
@@ -74,16 +76,14 @@ async def create_exam(
                 )
 
                 for answer_data in question_data.answers:
-                    create_exam_answer_db(
-                        db=db,
-                        question_id=question.id,
+                    repository.create_exam_answer(
+                        question_id=question_id,
                         a_text=answer_data.a_text,
                         is_correct=answer_data.is_correct
                     )
 
             else:
-                question = create_exam_question_db(
-                    db=db,
+                question_id = repository.create_exam_question(
                     q_text=question_data.q_text,
                     q_number=question_data.q_number,
                     q_type=question_data.q_type,
@@ -93,11 +93,10 @@ async def create_exam(
                 )
 
                 for answer_data in question_data.answers:
-                    create_exam_matching_db(
-                        db=db,
+                    repository.create_exam_matching(
                         left_text=answer_data.left_text,
                         right_text=answer_data.right_text,
-                        question_id=question.id
+                        question_id=question_id
                     )
 
         return {"message": "Exam data have been saved"}

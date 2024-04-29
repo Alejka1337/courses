@@ -1,12 +1,13 @@
-from typing import Union, List
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status, Response
+from typing import List, Union
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from src.crud.category import (create_category_db, delete_category_db, select_all_categories_db,
                                select_category_by_id_db, update_category_db)
 from src.enums import UserType
-from src.models import UserOrm, CategoryOrm
-from src.schemas.category import CategoryCreate, CategoryUpdate, CategoryOut
+from src.models import CategoryOrm, UserOrm
+from src.schemas.category import CategoryCreate, CategoryOut, CategoryUpdate
 from src.session import get_db
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_category_course_avatar

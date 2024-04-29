@@ -22,7 +22,7 @@ async def upload_lecture_file(
 ):
     if user.usertype == UserType.moder.value:
         file_path = save_lesson_image(file)
-        return {"file_name": file.filename, "file_path": file_path, "file_size": file.size}
+        return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 

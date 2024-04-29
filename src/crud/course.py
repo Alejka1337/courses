@@ -2,9 +2,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased, joinedload
 
 from src.enums import CourseStatus, LessonType
-from src.models import (CourseIconOrm, CourseOrm, StudentCourseAssociation, StudentLessonOrm, TestOrm, TestQuestionOrm,
-                        ExamQuestionOrm, ExamOrm)
-
+from src.models import (CourseIconOrm, CourseOrm, ExamOrm, ExamQuestionOrm, StudentCourseAssociation, StudentLessonOrm,
+                        TestOrm, TestQuestionOrm)
 from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
 
 
@@ -265,11 +264,6 @@ def select_students_whose_bought_courses(db: Session, course_id: int):
         .all()
     )
     courses_ids_list = [course[0] for course in courses_ids]
-
-    # subquery = db.query(course_alias.category_id).filter(course_alias.id == course_id).limit(1).scalar_subquery()
-    # courses_subquery = (db.query(CourseOrm.id)
-    #                     .filter(CourseOrm.category_id == subquery, CourseOrm.id != course_id)
-    #                     .subquery())
 
     return (db.query(StudentCourseAssociation.student_id.label("id"))
             .filter(StudentCourseAssociation.course_id.in_(courses_ids_list))

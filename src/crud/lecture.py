@@ -4,8 +4,15 @@ from src.enums import LectureAttributeType
 from src.models import LectureAttributeOrm, LectureFilesOrm, LectureLinksOrm, LectureOrm
 
 
-def create_attribute_base_db(db: Session, lecture_id: int, a_type: LectureAttributeType, a_title: str, a_number: int,
-                             a_text: str | None, hidden: bool):
+def create_attribute_base_db(
+        db: Session,
+        lecture_id: int,
+        a_type: LectureAttributeType,
+        a_title: str,
+        a_number: int,
+        a_text: str | None,
+        hidden: bool
+):
     new_attr = LectureAttributeOrm(
         a_type=a_type,
         a_title=a_title,

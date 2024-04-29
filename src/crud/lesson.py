@@ -1,7 +1,7 @@
 from sqlalchemy import asc, func
 from sqlalchemy.orm import Session
 
-from src.crud.exam import select_exam_answers_db
+from src.crud.exam import ExamRepository
 from src.crud.test import select_test_answers_db
 from src.enums import LectureAttributeType, LessonType, QuestionTypeOption
 from src.models import (CourseOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm,
@@ -193,6 +193,7 @@ def select_lesson_db(db: Session, lesson_id: int, user: UserOrm):
             return lesson
 
     else:
+        exam_repository = ExamRepository(db=db)
         exam = db.query(ExamOrm).filter(ExamOrm.lesson_id == lesson_id).first()
 
         if exam:
@@ -205,14 +206,14 @@ def select_lesson_db(db: Session, lesson_id: int, user: UserOrm):
                                  "image_path": None, "answers": []}
 
                 if question.q_type in [QuestionTypeOption.test.value, QuestionTypeOption.boolean.value]:
-                    answers = select_exam_answers_db(db=db, question_id=question.id)
+                    answers = exam_repository.select_exam_answers(question_id=question.id)
 
                     for answer in answers:
                         answer_data = {"a_id": answer.id, "a_text": answer.a_text, "is_correct": answer.is_correct}
                         question_data["answers"].append(answer_data)
 
                 elif question.q_type == QuestionTypeOption.answer_with_photo.value:
-                    answers = select_exam_answers_db(db=db, question_id=question.id)
+                    answers = exam_repository.select_exam_answers(question_id=question.id)
 
                     for answer in answers:
                         answer_data = {"a_id": answer.id, "a_text": answer.a_text, "is_correct": answer.is_correct,
@@ -221,14 +222,14 @@ def select_lesson_db(db: Session, lesson_id: int, user: UserOrm):
 
                 elif question.q_type == QuestionTypeOption.question_with_photo.value:
                     question_data["image_path"] = question.image_path
-                    answers = select_exam_answers_db(db=db, question_id=question.id)
+                    answers = exam_repository.select_exam_answers(question_id=question.id)
 
                     for answer in answers:
                         answer_data = {"a_id": answer.id, "a_text": answer.a_text, "is_correct": answer.is_correct}
                         question_data["answers"].append(answer_data)
 
                 elif question.q_type == QuestionTypeOption.multiple_choice.value:
-                    answers = select_exam_answers_db(db=db, question_id=question.id)
+                    answers = exam_repository.select_exam_answers(question_id=question.id)
 
                     for answer in answers:
                         counter = 0

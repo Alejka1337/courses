@@ -16,8 +16,15 @@ def create_student_attempts_db(db: Session, number: int, score: int, test_id: in
     return new_attempt
 
 
-def create_student_test_answer_db(db: Session, score: int, question_id: int, question_type: QuestionTypeOption,
-                                  attempt_id: int, answer: int = None, answers: list = None):
+def create_student_test_answer_db(
+        db: Session,
+        score: int,
+        question_id: int,
+        question_type: QuestionTypeOption,
+        attempt_id: int,
+        answer: int = None,
+        answers: list = None
+):
     student_answer = StudentTestAnswerOrm(
         score=score,
         question_id=question_id,
@@ -31,8 +38,15 @@ def create_student_test_answer_db(db: Session, score: int, question_id: int, que
     db.refresh(student_answer)
 
 
-def create_student_test_matching_db(db: Session, score: int, question_id: int, question_type: QuestionTypeOption,
-                                    attempt_id: int, left_id: int, right_id: int):
+def create_student_test_matching_db(
+        db: Session,
+        score: int,
+        question_id: int,
+        question_type: QuestionTypeOption,
+        attempt_id: int,
+        left_id: int,
+        right_id: int
+):
     student_match = StudentTestMatchingOrm(
         score=score,
         question_id=question_id,
@@ -48,7 +62,8 @@ def create_student_test_matching_db(db: Session, score: int, question_id: int, q
 
 def select_student_attempt_db(db: Session, test_id: int, student_id: int):
     return (db.query(StudentTestAttemptsOrm)
-            .filter(StudentTestAttemptsOrm.student_id == student_id, StudentTestAttemptsOrm.test_id == test_id)
+            .filter(StudentTestAttemptsOrm.student_id == student_id,
+                    StudentTestAttemptsOrm.test_id == test_id)
             .order_by(desc(StudentTestAttemptsOrm.attempt_number))
             .first())
 
