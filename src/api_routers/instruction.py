@@ -1,10 +1,7 @@
-from typing import Annotated
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from src.crud.instruction import (create_instruction_db, create_instruction_file_db, select_course_instruction_db,
-                                  select_general_instruction_db)
+from src.crud.instruction import InstructionRepository
 from src.enums import UserType
 from src.models import UserOrm
 from src.schemas.instruction import InstructionCreate, InstructionUpdate
@@ -23,7 +20,9 @@ async def upload_instruction_file(
     if user.usertype == UserType.moder.value:
         file_path = save_instruction_file(file=file)
         return {
-            "file_path": file_path, "file_size": file.size, "file_name": file.filename,
+            "file_path": file_path,
+            "file_size": file.size,
+            "file_name": file.filename,
             "file_type": file.filename.split(".")[-1]
         }
     else:
@@ -32,24 +31,30 @@ async def upload_instruction_file(
 
 @router.post("/create")
 async def create_instruction(
-        data: Annotated[InstructionCreate, Depends()],
+        data: InstructionCreate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        instruction = create_instruction_db(db=db, data=data)
+        repository = InstructionRepository(db=db)
+        instruction = repository.create_instruction(data=data)
+
         if data.files:
             for file_data in data.files:
-                create_instruction_file_db(db=db, file_data=file_data.dict(), instruction_id=instruction.id)
+                repository.create_instruction_file(data=file_data, instruction_id=instruction.id)
+
         return instruction
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied"
+        )
 
 
 @router.get("/general")
 async def get_general_instruction(db: Session = Depends(get_db)):
-    result = select_general_instruction_db(db=db)
-    return result
+    repository = InstructionRepository(db=db)
+    return repository.select_general_instruction()
 
 
 @router.get("/courses")
@@ -58,26 +63,44 @@ async def get_courses_instruction(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.student.value:
+        repository = InstructionRepository(db=db)
         categories = set()
         courses = user.student.courses
         for course in courses:
             categories.add(course.category_id)
 
-        result = select_course_instruction_db(db=db, categories=list(categories))
-        return result
+        return repository.select_course_instruction(categories=list(categories))
 
     else:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Instruction not found"
+        )
 
 
 @router.put("/update/{instruction_id}")
 async def update_instruction(
-        data: Annotated[InstructionUpdate, Depends()],
+        data: InstructionUpdate,
         instruction_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    pass
+    if user.usertype == UserType.moder.value:
+        repository = InstructionRepository(db=db)
+        instruction = repository.update_instruction(instruction_id=instruction_id, data=data)
+
+        if data.files:
+            repository.delete_instruction_files(instruction_id=instruction_id)
+            for file_data in data.files:
+                repository.create_instruction_file(data=file_data, instruction_id=instruction_id)
+
+        return instruction
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only moderator can update instruction"
+        )
 
 
 @router.delete("/delete/{instruction_id}")
@@ -86,4 +109,13 @@ async def delete_instruction(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    pass
+    if user.usertype == UserType.moder.value:
+        repository = InstructionRepository(db=db)
+        repository.delete_instruction(instruction_id=instruction_id)
+        return {"message": "Instruction successfully deleted"}
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only moderator can delete instruction"
+        )
