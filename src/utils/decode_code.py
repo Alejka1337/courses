@@ -18,7 +18,7 @@ def decode_access_token(access_token: str):
         payload = decode(access_token, SECRET_KEY, algorithms=ALGORITHM)
     except Exception:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication token expired",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired",
             headers={"WWW-Authenticate": "Bearer"}
         )
 
@@ -41,6 +41,6 @@ def decode_access_token(access_token: str):
         return user
     else:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication token expired",
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Access token expired",
             headers={"WWW-Authenticate": "Bearer"}
         )

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from fastapi import HTTPException, status
 from jose.jwt import encode
 
 from src.config import ACCESS_TOKEN_EXPIRE, ALGORITHM, REFRESH_TOKEN_EXPIRE, SECRET_KEY
@@ -25,9 +26,12 @@ def create_refresh_token(data: dict):
 
 
 def check_expire_token(user: UserOrm, exp_token: int):
-    expire_token = datetime.utcfromtimestamp(exp_token)
-    expire_token_str = expire_token.strftime("%Y-%m-%d %H:%M:%S")
-    user_expire_token_str = user.exp_token.strftime("%Y-%m-%d %H:%M:%S")
-    if expire_token_str == user_expire_token_str:
-        return True
-    return False
+    try:
+        expire_token = datetime.utcfromtimestamp(exp_token)
+        expire_token_str = expire_token.strftime("%Y-%m-%d %H:%M:%S")
+        user_expire_token_str = user.exp_token.strftime("%Y-%m-%d %H:%M:%S")
+        if expire_token_str == user_expire_token_str:
+            return True
+        return False
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Need refresh")

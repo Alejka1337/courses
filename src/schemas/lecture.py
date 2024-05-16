@@ -62,3 +62,11 @@ class LectureAttributeBaseUpdate(BaseModel):
 class LectureAttributeUpdate(LectureAttributeBaseUpdate):
     files: Optional[List[LectureFileUpdate]] = None
     links: Optional[List[LectureLinkUpdate]] = None
+
+
+class LectureFileAttributeUpdate(LectureAttributeBaseUpdate):
+    filename: Optional[str] = None
+    file_path: Optional[str] = None
+    file_size: Optional[int] = None
+    file_description: Optional[str] = None
+    download_allowed: Optional[bool] = None

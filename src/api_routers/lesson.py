@@ -75,4 +75,7 @@ async def get_lesson(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    return select_lesson_db(db=db, lesson_id=lesson_id, user=user)
+    if user.usertype == UserType.student.value:
+        return select_lesson_db(db=db, lesson_id=lesson_id, student_id=user.student.id)
+    else:
+        return select_lesson_db(db=db, lesson_id=lesson_id)

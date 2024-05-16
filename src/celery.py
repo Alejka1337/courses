@@ -8,7 +8,7 @@ from celery import Celery
 from src.config import BROKER_URL
 from src.crud.course import (select_course_info_db, select_course_name_by_id_db, select_student_course_db,
                              select_students_whose_bought_courses, update_course_present, update_course_score)
-from src.crud.lecture import select_lecture_attrs_db, update_lecture_audio
+from src.crud.lecture import LectureRepository
 from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_type_and_title_db, select_lessons_by_course_db
 from src.crud.notifications import create_course_add_notification, create_course_update_notification
 from src.crud.student_lesson import (create_student_lesson_db, select_count_completed_student_lessons_db,
@@ -139,7 +139,8 @@ def update_student_lesson_status(lesson_id: int, student_id: int):
 @celery_app.task
 def create_lecture_audio(lecture_id: int):
     db = SessionLocal()
-    lecture_attrs = select_lecture_attrs_db(db=db, lecture_id=lecture_id)
+    repository = LectureRepository(db=db)
+    lecture_attrs = repository.select_lecture_attrs(lecture_id=lecture_id)
     lecture_text = create_lecture_text(lecture_attrs)
 
     folder = "static/speeches" + "/lecture" + str(lecture_id)
@@ -148,7 +149,7 @@ def create_lecture_audio(lecture_id: int):
 
     result = text_to_speach(text=lecture_text, lecture_id=lecture_id)
     audio_list = [value for value in result.values()]
-    update_lecture_audio(db=db, lecture_id=lecture_id, audios=audio_list)
+    repository.update_lecture_audio(lecture_id=lecture_id, audios=audio_list)
 
     db.close()
 

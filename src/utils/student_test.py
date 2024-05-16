@@ -1,16 +1,16 @@
 from sqlalchemy.orm import Session
 
-from src.crud.test import (select_correct_answer_db, select_correct_answers_db, select_correct_right_db,
-                           select_total_correct_answers_db)
+from src.crud.test import TestRepository
 from src.models import TestQuestionOrm
 
 
 def check_student_test_matching(db: Session, student_matching: list, question: TestQuestionOrm):
+    repository = TestRepository(db=db)
     total_score = 0
     score_for_match = int(question.q_score / 4)
 
     for match in student_matching:
-        correct_right = select_correct_right_db(db=db, left_id=match.left_id)
+        correct_right = repository.select_correct_right(left_id=match.left_id)
         if match.right_id == correct_right:
             total_score += score_for_match
 
@@ -18,9 +18,11 @@ def check_student_test_matching(db: Session, student_matching: list, question: T
 
 
 def check_student_multiple_choice_test(db: Session, question: TestQuestionOrm, student_answers: list):
-    count_correct = select_total_correct_answers_db(db=db, question_id=question.id)
+    repository = TestRepository(db=db)
+    count_correct = repository.select_total_correct_answers(question_id=question.id)
+    correct_answers = repository.select_correct_answers(question_id=question.id)
+
     score_for_correct = int(question.q_score / count_correct)
-    correct_answers = select_correct_answers_db(db=db, question_id=question.id)
     count_student_answer = len(student_answers)
     total_score = 0
 
@@ -42,7 +44,8 @@ def check_student_multiple_choice_test(db: Session, question: TestQuestionOrm, s
 
 
 def check_student_default_test(db: Session, question: TestQuestionOrm, student_answer: int):
-    answer_id = select_correct_answer_db(db=db, question_id=question.id)
+    repository = TestRepository(db=db)
+    answer_id = repository.select_correct_answer(question_id=question.id)
     if answer_id != student_answer:
         return 0
     else:

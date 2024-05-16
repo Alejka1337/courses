@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from src.celery import create_lecture_audio, update_student_course_progress
-from src.crud.lecture import create_attribute_base_db, create_attribute_file_db, create_attribute_link_db
+from src.crud.lecture import LectureRepository
 from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_number_and_course_id_db
 from src.crud.student_lesson import confirm_student_lecture_db, select_student_lesson_db, set_active_student_lesson_db
 from src.enums import UserType
 from src.models import UserOrm
-from src.schemas.lecture import LectureAttributeBase, LectureAttributeCreate, LectureFileBase
+from src.schemas.lecture import (LectureAttributeBase, LectureAttributeCreate, LectureFileBase,
+                                 LectureAttributeBaseUpdate, LectureAttributeUpdate, LectureFileAttributeUpdate)
 from src.session import get_db
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_lesson_image
@@ -35,8 +36,8 @@ async def create_text_attribute(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        create_attribute_base_db(
-            db=db,
+        repository = LectureRepository(db=db)
+        repository.create_attribute_base(
             lecture_id=lecture_id,
             a_type=data.a_type,
             a_title=data.a_title,
@@ -47,6 +48,28 @@ async def create_text_attribute(
 
         create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
+@router.patch("/update/text")
+async def update_text_attribute(
+        attr_id: int,
+        data: LectureAttributeBaseUpdate,
+        db: Session = Depends(get_db),
+        user: UserOrm = Depends(get_current_user)
+):
+    if user.usertype == UserType.moder.value:
+        repository = LectureRepository(db=db)
+        repository.update_lecture_attr(
+            attr_id=attr_id,
+            a_text=data.a_text,
+            a_title=data.a_title,
+            a_number=data.a_number,
+            hidden=data.hidden
+        )
+        return {"message": "Attribute successfully updated"}
+
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
@@ -59,8 +82,8 @@ async def create_file_attribute(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        attribute = create_attribute_base_db(
-            db=db,
+        repository = LectureRepository(db=db)
+        attribute_id = repository.create_attribute_base(
             lecture_id=lecture_id,
             a_type=data.a_type,
             a_title=data.a_title,
@@ -69,9 +92,8 @@ async def create_file_attribute(
             hidden=data.hidden
         )
 
-        create_attribute_file_db(
-            db=db,
-            attribute_id=attribute.id,
+        repository.create_attribute_file(
+            attribute_id=attribute_id,
             filename=data.filename,
             file_path=data.file_path,
             file_size=data.file_size,
@@ -84,6 +106,21 @@ async def create_file_attribute(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
 
+@router.patch("/update/file")
+async def update_text_attribute(
+        attr_id: int,
+        data: LectureFileAttributeUpdate,
+        db: Session = Depends(get_db),
+        user: UserOrm = Depends(get_current_user)
+):
+    if user.usertype == UserType.moder.value:
+        repository = LectureRepository(db=db)
+        repository.update_lecture_file_attr(attr_id=attr_id, data=data)
+        return {"message": "Attribute successfully updated"}
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
 @router.post("/create/files")
 async def create_files_attribute(
         lecture_id: int,
@@ -92,8 +129,8 @@ async def create_files_attribute(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        attribute = create_attribute_base_db(
-            db=db,
+        repository = LectureRepository(db=db)
+        attribute_id = repository.create_attribute_base(
             lecture_id=lecture_id,
             a_type=data.a_type,
             a_title=data.a_title,
@@ -103,9 +140,8 @@ async def create_files_attribute(
         )
 
         for file_item in data.files:
-            create_attribute_file_db(
-                db=db,
-                attribute_id=attribute.id,
+            repository.create_attribute_file(
+                attribute_id=attribute_id,
                 filename=file_item.filename,
                 file_path=file_item.file_path,
                 file_size=file_item.file_size,
@@ -120,6 +156,21 @@ async def create_files_attribute(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
 
+@router.patch("/update/files")
+async def update_text_attribute(
+        attr_id: int,
+        data: LectureAttributeUpdate,
+        db: Session = Depends(get_db),
+        user: UserOrm = Depends(get_current_user)
+):
+    if user.usertype == UserType.moder.value:
+        repository = LectureRepository(db=db)
+        repository.update_lecture_files_attr(attr_id=attr_id, data=data)
+
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
 @router.post("/create/images")
 async def create_images_attribute(
         lecture_id: int,
@@ -128,8 +179,8 @@ async def create_images_attribute(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        attribute = create_attribute_base_db(
-            db=db,
+        repository = LectureRepository(db=db)
+        attribute_id = repository.create_attribute_base(
             lecture_id=lecture_id,
             a_type=data.a_type,
             a_title=data.a_title,
@@ -139,9 +190,8 @@ async def create_images_attribute(
         )
 
         for image_item in data.files:
-            create_attribute_file_db(
-                db=db,
-                attribute_id=attribute.id,
+            repository.create_attribute_file(
+                attribute_id=attribute_id,
                 filename=image_item.filename,
                 file_path=image_item.file_path,
                 file_size=image_item.file_size,
@@ -156,6 +206,21 @@ async def create_images_attribute(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
 
+@router.patch("/update/images")
+async def update_text_attribute(
+        attr_id: int,
+        data: LectureAttributeUpdate,
+        db: Session = Depends(get_db),
+        user: UserOrm = Depends(get_current_user)
+):
+    if user.usertype == UserType.moder.value:
+        repository = LectureRepository(db=db)
+        repository.update_lecture_files_attr(attr_id=attr_id, data=data)
+
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
 @router.post("/create/link")
 async def create_link_attribute(
         lecture_id: int,
@@ -164,8 +229,8 @@ async def create_link_attribute(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        attribute = create_attribute_base_db(
-            db=db,
+        repository = LectureRepository(db=db)
+        attribute_id = repository.create_attribute_base(
             lecture_id=lecture_id,
             a_type=data.a_type,
             a_title=data.a_title,
@@ -175,15 +240,29 @@ async def create_link_attribute(
         )
 
         for link_item in data.links:
-            create_attribute_link_db(
-                db=db,
-                attribute_id=attribute.id,
+            repository.create_attribute_link(
+                attribute_id=attribute_id,
                 link=link_item.link,
                 anchor=link_item.anchor
             )
 
         create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
+
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+
+@router.patch("/update/link")
+async def update_text_attribute(
+        attr_id: int,
+        data: LectureAttributeUpdate,
+        db: Session = Depends(get_db),
+        user: UserOrm = Depends(get_current_user)
+):
+    if user.usertype == UserType.moder.value:
+        repository = LectureRepository(db=db)
+        repository.update_lecture_links_attr(attr_id=attr_id, data=data)
 
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")

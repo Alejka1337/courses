@@ -1,12 +1,14 @@
 from sqlalchemy.orm import Session
 
-from src.models import ExamAnswerOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm
+from src.enums import QuestionTypeOption
+from src.models import ExamAnswerOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm, LessonOrm
 
 
 class ExamRepository:
     def __init__(self, db: Session):
         self.db = db
         self.exam_model = ExamOrm
+        self.lesson_model = LessonOrm
         self.question_model = ExamQuestionOrm
         self.answer_model = ExamAnswerOrm
         self.matching_left_model = ExamMatchingLeftOrm
@@ -99,3 +101,89 @@ class ExamRepository:
 
     def select_exam_id(self, lesson_id: int):
         return self.db.query(self.exam_model.id).filter(self.exam_model.lesson_id == lesson_id).scalar()
+
+    def select_exam_data(self, lesson: LessonOrm):
+        exam = self.db.query(self.exam_model).filter(self.exam_model.lesson_id == lesson.id).first()
+
+        if exam:
+            exam_questions = self.db.query(self.question_model).filter(self.question_model.exam_id == exam.id).all()
+            exam_data = {"exam_id": exam.id, "score": exam.score, "attempts": exam.attempts, "questions": []}
+
+            for question in exam_questions:
+                question_data = {
+                    "q_id": question.id,
+                    "q_text": question.q_text,
+                    "q_number": question.q_number,
+                    "q_score": question.q_score,
+                    "q_type": question.q_type,
+                    "hidden": question.hidden,
+                    "image_path": None,
+                    "answers": []
+                }
+
+                if question.q_type in [QuestionTypeOption.test.value, QuestionTypeOption.boolean.value]:
+                    answers = self.select_exam_answers(question_id=question.id)
+
+                    for answer in answers:
+                        answer_data = {"a_id": answer.id, "a_text": answer.a_text, "is_correct": answer.is_correct}
+                        question_data["answers"].append(answer_data)
+
+                elif question.q_type == QuestionTypeOption.answer_with_photo.value:
+                    answers = self.select_exam_answers(question_id=question.id)
+
+                    for answer in answers:
+                        answer_data = {
+                            "a_id": answer.id,
+                            "a_text": answer.a_text,
+                            "is_correct": answer.is_correct,
+                            "image_path": answer.image_path
+                        }
+                        question_data["answers"].append(answer_data)
+
+                elif question.q_type == QuestionTypeOption.question_with_photo.value:
+                    question_data["image_path"] = question.image_path
+                    answers = self.select_exam_answers(question_id=question.id)
+
+                    for answer in answers:
+                        answer_data = {"a_id": answer.id, "a_text": answer.a_text, "is_correct": answer.is_correct}
+                        question_data["answers"].append(answer_data)
+
+                elif question.q_type == QuestionTypeOption.multiple_choice.value:
+                    answers = self.select_exam_answers(question_id=question.id)
+
+                    for answer in answers:
+                        counter = 0
+                        if answer.is_correct:
+                            counter += 1
+
+                        answer_data = {"a_id": answer.id, "a_text": answer.a_text, "is_correct": answer.is_correct}
+                        question_data["answers"].append(answer_data)
+                        question_data["count_correct"] = counter
+
+                else:
+                    left_options = (self.db.query(self.matching_left_model)
+                                    .filter(self.matching_left_model.question_id == question.id).all())
+
+                    right_options = (self.db.query(self.matching_right_model)
+                                     .filter(self.matching_right_model.question_id == question.id).all())
+
+                    question_data["answers"] = {
+                        "left": [
+                            {
+                                "value": left_option.text,
+                                "id": left_option.id
+                            } for left_option in left_options
+                        ],
+                        "right": [
+                            {
+                                "value": right_option.text,
+                                "id": right_option.id
+                            } for right_option in right_options
+                        ]
+                    }
+
+                exam_data["questions"].append(question_data)
+            setattr(lesson, "exam_data", exam_data)
+            return lesson
+        else:
+            return lesson

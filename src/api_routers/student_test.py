@@ -6,7 +6,7 @@ from src.crud.student_lesson import confirm_student_test_db, select_student_less
 from src.crud.student_test import (create_student_attempts_db, create_student_test_answer_db,
                                    create_student_test_matching_db, select_student_answers_db,
                                    select_student_attempt_by_id, select_student_attempt_db, select_student_attempts_db)
-from src.crud.test import select_test_id_by_lesson_id, select_test_question_db
+from src.crud.test import TestRepository
 from src.enums import QuestionTypeOption, UserType
 from src.models import UserOrm
 from src.schemas.student_test import StudentTest, SubmitStudentTest
@@ -24,7 +24,8 @@ async def confirm_student_test(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    test_id = select_test_id_by_lesson_id(db=db, lesson_id=data.lesson_id)
+    test_repository = TestRepository(db=db)
+    test_id = test_repository.select_test_id_by_lesson_id(lesson_id=data.lesson_id)
     student_id = user.student.id
 
     final_score = 0
@@ -34,7 +35,7 @@ async def confirm_student_test(
     attempt_number = student_attempt.attempt_number + 1 if student_attempt else 1
 
     for student_answer in data.student_answers:
-        question = select_test_question_db(db=db, question_id=student_answer.q_id)
+        question = test_repository.select_test_question(question_id=student_answer.q_id)
 
         if student_answer.q_type == QuestionTypeOption.matching.value:
             q_score = check_student_test_matching(db=db, student_matching=student_answer.matching, question=question)

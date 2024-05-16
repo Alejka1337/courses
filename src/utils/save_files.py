@@ -90,3 +90,10 @@ def delete_files_in_directory(directory):
             print(f"Файл {file_path} успешно удален")
         except Exception as e:
             print(f"Ошибка при удалении файла {file_path}: {e}")
+
+
+def delete_file(file_path: str):
+    try:
+        os.remove(file_path)
+    except Exception as e:
+        print(f"Ошибка при удалении файла {file_path}: {e}")

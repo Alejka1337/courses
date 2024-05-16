@@ -38,7 +38,7 @@ def get_current_user(db: Session = Depends(get_db), access_token: str = Depends(
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired",
+                detail="Access token expired",
                 headers={"WWW-Authenticate": "Bearer"}
             )
 
