@@ -1,9 +1,10 @@
+from typing import List
 from sqlalchemy import asc, func
 from sqlalchemy.orm import Session
 
 from src.crud.exam import ExamRepository
-from src.crud.test import TestRepository
 from src.crud.lecture import LectureRepository
+from src.crud.test import TestRepository
 from src.enums import LessonType
 from src.models import CourseOrm, ExamOrm, ExamQuestionOrm, LectureOrm, LessonOrm, TestOrm, TestQuestionOrm
 from src.schemas.lesson import LessonCreate
@@ -133,3 +134,21 @@ def check_validity_lesson(db: Session, course_id: int):
     else:
         db.query(CourseOrm).filter(CourseOrm.id == course_id).update({CourseOrm.is_published: True})
         return {"result": True, "message": "Course successfully published"}
+
+
+def search_lesson(db: Session, query: str):
+    regex_query = fr"\y{query}.*"
+    return db.query(LessonOrm).filter(LessonOrm.title.op('~*')(regex_query)).all()
+
+
+def get_lesson_info(db: Session, lessons: List[LessonOrm]):
+    for lesson in lessons:
+        if lesson.type == LessonType.test.value:
+            test_id = db.query(TestOrm.id).filter(TestOrm.lesson_id == lesson.id).scalar()
+            count_questions = db.query(TestQuestionOrm).filter(TestQuestionOrm.test_id == test_id).count()
+            setattr(lesson, "count_questions", count_questions)
+
+        elif lesson.type == LessonType.exam.value:
+            exam_id = db.query(ExamOrm.id).filter(ExamOrm.lesson_id == lesson.id).scalar()
+            count_questions = db.query(ExamQuestionOrm).filter(ExamQuestionOrm.exam_id == exam_id).count()
+            setattr(lesson, "count_questions", count_questions)

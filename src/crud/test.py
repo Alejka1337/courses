@@ -129,6 +129,35 @@ class TestRepository:
         self.db.commit()
         self.db.refresh(question)
 
+    def delete_question(self, question_id: int):
+        question = self.select_test_question(question_id=question_id)
+
+        if question.q_type == QuestionTypeOption.matching:
+            match_left = (self.db.query(self.matching_left_model)
+                          .filter(self.matching_left_model.question_id == question.id)
+                          .all())
+
+            match_right = (self.db.query(self.matching_right_model)
+                           .filter(self.matching_right_model.question_id == question.id)
+                           .all())
+
+            for ml in match_left:
+                self.db.delete(ml)
+
+            for mr in match_right:
+                self.db.delete(mr)
+
+            self.db.delete(question)
+            self.db.commit()
+
+        else:
+            answers = self.select_test_answers(question_id=question.id)
+            for answer in answers:
+                self.db.delete(answer)
+
+            self.db.delete(question)
+            self.db.commit()
+
     def update_answer(self, answer_id: int, data: TestAnswerUpdate):
         answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
 
@@ -137,6 +166,11 @@ class TestRepository:
 
         self.db.commit()
         self.db.refresh(answer)
+
+    def delete_answer(self, answer_id: int):
+        answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
+        self.db.delete(answer)
+        self.db.commit()
 
     def update_matching(self, left_id: int, data: TestMatchingUpdate):
         left = self.db.query(self.matching_left_model).filter(self.matching_left_model.id == left_id).first()

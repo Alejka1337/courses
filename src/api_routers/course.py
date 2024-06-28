@@ -1,18 +1,18 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from src.celery import add_new_course_notification
-from src.crud.course import (create_course_db, create_course_icon_db, delete_course_db, select_all_courses_db,
-                             select_course_by_id_db, select_courses_by_category_id_db, update_course_db,
-                             update_course_icon_db)
+from src.celery import celery_tasks
+from src.crud.course import CourseRepository
+from src.crud.student_course import select_student_course_info, select_student_lesson_info
 from src.crud.lesson import check_validity_lesson
-from src.enums import UserType
+from src.enums import StaticFileType, UserType
 from src.models import UserOrm
 from src.schemas.course import CourseCreate, CourseIconsCreate, CourseIconUpdate, CourseUpdate
 from src.session import get_db
 from src.utils.decode_code import decode_access_token
+from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.save_files import save_course_icon, save_course_image
+from src.utils.save_files import save_file
 
 router = APIRouter(prefix="/course")
 
@@ -25,14 +25,15 @@ async def create_course(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        course = create_course_db(db=db, data=data)
+        repository = CourseRepository(db=db)
+        course = repository.create_course(data)
         if icon_data:
             for item in icon_data.icons:
-                create_course_icon_db(db=db, course_id=course.id, icon_data=item)
-        add_new_course_notification.delay(course.id)
+                repository.create_course_icon(course_id=course.id, icon_data=item)
+        celery_tasks.add_new_course_notification.delay(course.id)
         return course
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.put("/update/{course_id}")
@@ -43,10 +44,12 @@ async def update_course(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        course = select_course_by_id_db(db=db, course_id=course_id)
-        return update_course_db(db=db, course=course, data=data)
+        repository = CourseRepository(db=db)
+        course = repository.select_course_by_id(course_id=course_id)
+        result = repository.update_course(course=course, data=data)
+        return result
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.delete("/delete/{course_id}")
@@ -56,11 +59,12 @@ async def delete_course(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        course = select_course_by_id_db(db=db, course_id=course_id)
-        delete_course_db(db=db, course=course)
+        repository = CourseRepository(db=db)
+        course = repository.select_course_by_id(course_id=course_id)
+        repository.delete_course(course=course)
         return {"message": "Course has been deleted"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.get("/all")
@@ -68,12 +72,25 @@ async def get_courses(
         request: Request,
         db: Session = Depends(get_db)
 ):
+    repository = CourseRepository(db=db)
     authorization = request.headers.get("authorization")
     if authorization and authorization.startswith("Bearer") and len(authorization) > 10:
-        user = decode_access_token(authorization[7:])
-        return select_all_courses_db(db=db, student_id=user.student.id)
+        user = decode_access_token(db=db, access_token=authorization[7:])
+
+        courses = repository.select_all_courses()
+        for course in courses:
+            select_student_course_info(db=db, course=course, student_id=user.student.id)
+            select_student_lesson_info(db=db, course=course, student_id=user.student.id)
+
+        return courses
     else:
-        return select_all_courses_db(db=db)
+        return repository.select_all_courses()
+
+
+@router.get("/popular")
+async def get_popular_course(db: Session = Depends(get_db)):
+    repository = CourseRepository(db=db)
+    return repository.select_popular_course()
 
 
 @router.get("/get/{course_id}")
@@ -82,12 +99,18 @@ async def get_course(
         course_id: int,
         db: Session = Depends(get_db)
 ):
+    repository = CourseRepository(db=db)
     authorization = request.headers.get("authorization")
     if authorization and authorization.startswith("Bearer") and len(authorization) > 10:
-        user = decode_access_token(authorization[7:])
-        return select_course_by_id_db(db=db, course_id=course_id, student_id=user.student.id)
+        user = decode_access_token(db=db, access_token=authorization[7:])
+
+        course = repository.select_course_by_id(course_id=course_id)
+        select_student_course_info(db=db, course=course, student_id=user.student.id)
+        select_student_lesson_info(db=db, course=course, student_id=user.student.id)
+        return course
+
     else:
-        return select_course_by_id_db(db=db, course_id=course_id)
+        return repository.select_course_by_id(course_id=course_id)
 
 
 @router.get("/get/category/{category_id}")
@@ -96,12 +119,19 @@ async def get_courses_by_category(
         category_id: int,
         db: Session = Depends(get_db)
 ):
+    repository = CourseRepository(db=db)
     authorization = request.headers.get("authorization")
     if authorization and authorization.startswith("Bearer") and len(authorization) > 10:
-        user = decode_access_token(authorization[7:])
-        return select_courses_by_category_id_db(db=db, category_id=category_id, student_id=user.student.id)
+        user = decode_access_token(db=db, access_token=authorization[7:])
+
+        courses = repository.select_courses_by_category_id(category_id=category_id)
+        for course in courses:
+            select_student_course_info(db=db, course=course, student_id=user.student.id)
+            select_student_lesson_info(db=db, course=course, student_id=user.student.id)
+
+        return courses
     else:
-        return select_courses_by_category_id_db(db=db, category_id=category_id)
+        return repository.select_courses_by_category_id(category_id=category_id)
 
 
 @router.post("/upload/course/image")
@@ -110,10 +140,10 @@ async def upload_course_image(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        image_path = save_course_image(file=file)
+        image_path = save_file(file=file, file_type=StaticFileType.course_image.value)
         return {"image_path": image_path}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/upload/course/icons")
@@ -122,10 +152,10 @@ async def upload_course_icons(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        icon_path = save_course_icon(file=file)
+        icon_path = save_file(file=file, file_type=StaticFileType.course_icon.value)
         return {"icon_path": icon_path}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/attach/icon")
@@ -136,11 +166,12 @@ async def attach_icons_for_course(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        for icon in data.icons:
-            create_course_icon_db(db=db, course_id=course_id, icon_data=icon)
+        repository = CourseRepository(db=db)
+        for icon_data in data.icons:
+            repository.create_course_icon(course_id=course_id, icon_data=icon_data)
         return {"message": "Successful attached"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.put("/update/icon/{icon_id}")
@@ -151,9 +182,10 @@ async def update_icon(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        return update_course_icon_db(db=db, data=data, icon_id=icon_id)
+        repository = CourseRepository(db=db)
+        return repository.update_course_icon(data=data, icon_id=icon_id)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.put("/publish/{course_id}")
@@ -165,4 +197,4 @@ async def publish_course(
     if user.usertype == UserType.moder.value:
         return check_validity_lesson(db=db, course_id=course_id)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()

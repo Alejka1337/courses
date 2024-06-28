@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from src.celery import update_student_course_progress, update_student_lessons
+from src.celery import celery_tasks
 from src.crud.lesson import select_lesson_by_type_and_title_db
-from src.crud.notifications import select_user_notification, select_user_notifications, update_notification_sent_status
+from src.crud.notifications import NotificationRepository
 from src.enums import UserType
 from src.models import UserOrm
 from src.session import get_db
+from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
 from src.utils.notifications import parse_notification_text
 
@@ -19,9 +20,11 @@ async def get_my_notifications(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.student.value:
-        return select_user_notifications(db=db, student_id=user.student.id)
+        repository = NotificationRepository(db=db)
+        notifications = repository.select_student_notifications(student_id=user.student.id)
+        return notifications
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only for students")
+        raise PermissionDeniedException()
 
 
 @router.patch("/send")
@@ -31,9 +34,11 @@ async def send_notification(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.student.value:
-        return update_notification_sent_status(db=db, notification_id=notification_id)
+        repository = NotificationRepository(db=db)
+        notification = repository.update_notification_sent_status(notification_id=notification_id)
+        return notification
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only for students")
+        raise PermissionDeniedException()
 
 
 @router.patch("/agree")
@@ -43,15 +48,20 @@ async def agree_with_notification(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.student.value:
-        notification = select_user_notification(db=db, student_id=user.student.id, notification_id=notification_id)
+        repository = NotificationRepository(db=db)
+        notification = repository.select_one_student_notification(
+            student_id=user.student.id,
+            notification_id=notification_id
+        )
+
         lesson_info = parse_notification_text(notification.message)
 
         new_lesson = select_lesson_by_type_and_title_db(
             db=db, lesson_title=lesson_info["lesson_title"], lesson_type=lesson_info["lesson_type"]
         )
 
-        update_student_lessons.delay(student_id=user.student.id, lesson_info=lesson_info)
-        update_student_course_progress.delay(student_id=user.student.id, lesson_id=new_lesson.id)
+        celery_tasks.update_student_lessons.delay(student_id=user.student.id, lesson_info=lesson_info)
+        celery_tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=new_lesson.id)
         return {"message": "Wait for your course update"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only for students")
+        raise PermissionDeniedException()

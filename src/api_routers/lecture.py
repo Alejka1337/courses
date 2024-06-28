@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
-from src.celery import create_lecture_audio, update_student_course_progress
+from src.celery import celery_tasks
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_number_and_course_id_db
 from src.crud.student_lesson import confirm_student_lecture_db, select_student_lesson_db, set_active_student_lesson_db
-from src.enums import UserType
+from src.enums import StaticFileType, UserType
 from src.models import UserOrm
-from src.schemas.lecture import (LectureAttributeBase, LectureAttributeCreate, LectureFileBase,
-                                 LectureAttributeBaseUpdate, LectureAttributeUpdate, LectureFileAttributeUpdate)
+from src.schemas.lecture import (LectureAttributeBase, LectureAttributeBaseUpdate, LectureAttributeCreate,
+                                 LectureAttributeUpdate, LectureFileAttributeUpdate, LectureFileBase)
 from src.session import get_db
+from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.save_files import save_lesson_image
+from src.utils.save_files import save_file
 
 router = APIRouter(prefix="/lecture")
 
@@ -22,10 +23,10 @@ async def upload_lecture_file(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        file_path = save_lesson_image(file)
+        file_path = save_file(file=file, file_type=StaticFileType.lesson_image.value)
         return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/create/text")
@@ -46,10 +47,10 @@ async def create_text_attribute(
             hidden=data.hidden
         )
 
-        create_lecture_audio.delay(lecture_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.patch("/update/text")
@@ -71,7 +72,7 @@ async def update_text_attribute(
         return {"message": "Attribute successfully updated"}
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/create/file")
@@ -100,14 +101,14 @@ async def create_file_attribute(
             file_description=data.file_description,
             download_allowed=data.download_allowed
         )
-        create_lecture_audio.delay(lecture_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.patch("/update/file")
-async def update_text_attribute(
+async def update_file_attribute(
         attr_id: int,
         data: LectureFileAttributeUpdate,
         db: Session = Depends(get_db),
@@ -118,7 +119,7 @@ async def update_text_attribute(
         repository.update_lecture_file_attr(attr_id=attr_id, data=data)
         return {"message": "Attribute successfully updated"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/create/files")
@@ -149,15 +150,15 @@ async def create_files_attribute(
                 download_allowed=file_item.download_allowed
             )
 
-        create_lecture_audio.delay(lecture_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.patch("/update/files")
-async def update_text_attribute(
+async def update_files_attribute(
         attr_id: int,
         data: LectureAttributeUpdate,
         db: Session = Depends(get_db),
@@ -168,7 +169,7 @@ async def update_text_attribute(
         repository.update_lecture_files_attr(attr_id=attr_id, data=data)
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/create/images")
@@ -199,15 +200,15 @@ async def create_images_attribute(
                 download_allowed=image_item.download_allowed
             )
 
-        create_lecture_audio.delay(lecture_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.patch("/update/images")
-async def update_text_attribute(
+async def update_images_attribute(
         attr_id: int,
         data: LectureAttributeUpdate,
         db: Session = Depends(get_db),
@@ -218,7 +219,7 @@ async def update_text_attribute(
         repository.update_lecture_files_attr(attr_id=attr_id, data=data)
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/create/link")
@@ -246,15 +247,15 @@ async def create_link_attribute(
                 anchor=link_item.anchor
             )
 
-        create_lecture_audio.delay(lecture_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
         return {"message": "Attribute have been saved"}
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.patch("/update/link")
-async def update_text_attribute(
+async def update_link_attribute(
         attr_id: int,
         data: LectureAttributeUpdate,
         db: Session = Depends(get_db),
@@ -265,7 +266,7 @@ async def update_text_attribute(
         repository.update_lecture_links_attr(attr_id=attr_id, data=data)
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/confirm")
@@ -284,7 +285,7 @@ async def confirm_lecture(
         next_student_lesson = select_student_lesson_db(db=db, lesson_id=next_lesson.id, student_id=user.student.id)
         set_active_student_lesson_db(db=db, student_lesson=next_student_lesson)
 
-        update_student_course_progress.delay(student_id=user.student.id, lesson_id=lesson_id)
+        celery_tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=lesson_id)
         return {"message": "Lecture successfully confirm"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()

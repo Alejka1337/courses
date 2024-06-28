@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 
-from fastapi import HTTPException, status
 from jose.jwt import encode
 
 from src.config import ACCESS_TOKEN_EXPIRE, ALGORITHM, REFRESH_TOKEN_EXPIRE, SECRET_KEY
 from src.models import UserOrm
+from src.utils.exceptions import InvalidRefreshTokenException
 
 
 def create_access_token(data: dict, expire_delta: timedelta = None):
@@ -33,5 +33,5 @@ def check_expire_token(user: UserOrm, exp_token: int):
         if expire_token_str == user_expire_token_str:
             return True
         return False
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Need refresh")
+    except Exception:
+        raise InvalidRefreshTokenException()

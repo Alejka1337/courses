@@ -1,276 +1,138 @@
+from typing import cast, List
 from sqlalchemy import func
-from sqlalchemy.orm import Session, aliased, joinedload
+from sqlalchemy.orm import Session, joinedload
 
-from src.enums import CourseStatus, LessonType
-from src.models import (CourseIconOrm, CourseOrm, ExamOrm, ExamQuestionOrm, StudentCourseAssociation, StudentLessonOrm,
-                        TestOrm, TestQuestionOrm)
+from src.models import CourseIconOrm, CourseOrm, StudentCourseAssociation, LessonOrm
 from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
+from src.crud.lesson import get_lesson_info
 
 
-def create_course_db(db: Session, data: CourseCreate):
-    new_course = CourseOrm(
-        title=data.title,
-        image_path=data.image_path if data.image_path else None,
-        price=data.price,
-        old_price=data.old_price if data.old_price else None,
-        category_id=data.category_id,
-        intro_text=data.intro_text,
-        skills_text=data.skills_text,
-        about_text=data.about_text,
-        c_type=data.c_type if data.c_type else None,
-        c_duration=data.c_duration if data.c_duration else None,
-        c_award=data.c_award if data.c_award else None,
-        c_language=data.c_language if data.c_language else None,
-        c_level=data.c_level if data.c_level else None,
-        c_access=data.c_access if data.c_access else None
-    )
+class CourseRepository:
+    def __init__(self, db: Session):
+        self.db = db
+        self.course_model = CourseOrm
+        self.icon_model = CourseIconOrm
 
-    db.add(new_course)
-    db.commit()
-    db.refresh(new_course)
-    return new_course
+    def create_course(self, data: CourseCreate) -> CourseOrm:
+        new_course = CourseOrm(**data.dict())
+        self.db.add(new_course)
+        self.db.commit()
+        self.db.refresh(new_course)
+        return new_course
 
+    def create_course_icon(self, course_id: int, icon_data: CourseIconCreate) -> None:
+        icon_dict = icon_data.dict()
+        icon_dict.update({"course_id": course_id})
+        new_icon = CourseIconOrm(**icon_dict)
 
-def create_course_icon_db(db: Session, course_id: int, icon_data: CourseIconCreate):
-    new_icon = CourseIconOrm(
-        icon_path=icon_data.icon_path,
-        icon_number=icon_data.icon_number,
-        icon_title=icon_data.icon_title,
-        icon_text=icon_data.icon_text,
-        course_id=course_id
-    )
+        self.db.add(new_icon)
+        self.db.commit()
+        self.db.refresh(new_icon)
 
-    db.add(new_icon)
-    db.commit()
-    db.refresh(new_icon)
+    def select_course_by_id(self, course_id: int):
+        course = (self.db.query(self.course_model)
+                  .filter(self.course_model.id == course_id, self.course_model.is_published)
+                  .options(joinedload(self.course_model.icons))
+                  .options(joinedload(self.course_model.lessons))
+                  .first())
 
-
-def select_course_by_id_db(db: Session, course_id: int, student_id: int = None):
-    course = (db.query(CourseOrm)
-              .filter(CourseOrm.id == course_id, CourseOrm.is_published)
-              .options(joinedload(CourseOrm.icons))
-              .options(joinedload(CourseOrm.lessons))
-              .first())
-
-    for lesson in course.lessons:
-        if lesson.type == LessonType.test.value:
-            test_id = db.query(TestOrm.id).filter(TestOrm.lesson_id == lesson.id).scalar()
-            count_questions = db.query(TestQuestionOrm).filter(TestQuestionOrm.test_id == test_id).count()
-            setattr(lesson, "count_questions", count_questions)
-
-        elif lesson.type == LessonType.exam.value:
-            exam_id = db.query(ExamOrm.id).filter(ExamOrm.lesson_id == lesson.id).scalar()
-            count_questions = db.query(ExamQuestionOrm).filter(ExamQuestionOrm.exam_id == exam_id).count()
-            setattr(lesson, "count_questions", count_questions)
-
-    if student_id:
-        student_course = (db.query(StudentCourseAssociation.grade.label("grade"),
-                                   StudentCourseAssociation.progress.label("progress"))
-                          .filter(StudentCourseAssociation.course_id == course.id,
-                                  StudentCourseAssociation.student_id == student_id)
-                          .first())
-
-        if student_course is not None:
-            setattr(course, "bought", True)
-            setattr(course, "grade", student_course.grade)
-            setattr(course, "progress", student_course.progress)
-
-        for lesson in course.lessons:
-            student_lesson = (db.query(StudentLessonOrm)
-                              .filter(StudentLessonOrm.lesson_id == lesson.id,
-                                      StudentLessonOrm.student_id == student_id)
-                              .first())
-
-            if student_lesson:
-                setattr(lesson, "status", student_lesson.status)
-
-        return course
-    else:
+        if course.lessons:
+            lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
+            get_lesson_info(db=self.db, lessons=lessons)
         return course
 
+    def select_courses_by_category_id(self, category_id: int):
+        courses = (self.db.query(self.course_model)
+                   .filter(self.course_model.category_id == category_id, self.course_model.is_published)
+                   .options(joinedload(self.course_model.icons))
+                   .all())
 
-def select_courses_by_category_id_db(db: Session, category_id: int, student_id: int = None):
-    courses = (db.query(CourseOrm)
-               .filter(CourseOrm.category_id == category_id, CourseOrm.is_published)
-               .options(joinedload(CourseOrm.icons))
-               .all())
-
-    if student_id:
         for course in courses:
-            student_course = (db.query(StudentCourseAssociation.grade.label("grade"),
-                                       StudentCourseAssociation.progress.label("progress"))
-                              .filter(StudentCourseAssociation.course_id == course.id,
-                                      StudentCourseAssociation.student_id == student_id)
-                              .first())
-
-            if student_course is not None:
-                setattr(course, "bought", True)
-                setattr(course, "grade", student_course.grade)
-                setattr(course, "progress", student_course.progress)
+            if course.lessons:
+                lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
+                get_lesson_info(db=self.db, lessons=lessons)
 
         return courses
-    else:
-        return courses
 
+    def select_all_courses(self):
+        courses = (self.db.query(self.course_model)
+                   .filter(self.course_model.is_published)
+                   .options(joinedload(self.course_model.icons))
+                   .options(joinedload(self.course_model.lessons))
+                   .all())
 
-def select_all_courses_db(db: Session, student_id: int = None):
-    courses = (db.query(CourseOrm).filter(CourseOrm.is_published)
-               .options(joinedload(CourseOrm.icons)).options(joinedload(CourseOrm.lessons))
-               .all())
-
-    if student_id:
         for course in courses:
-            student_course = (db.query(StudentCourseAssociation.grade.label("grade"),
-                                       StudentCourseAssociation.progress.label("progress"))
-                              .filter(StudentCourseAssociation.course_id == course.id,
-                                      StudentCourseAssociation.student_id == student_id)
-                              .first())
-
-            if student_course is not None:
-                setattr(course, "bought", True)
-                setattr(course, "grade", student_course.grade)
-                setattr(course, "progress", student_course.progress)
-
-            for lesson in course.lessons:
-                student_lesson = (db.query(StudentLessonOrm)
-                                  .filter(StudentLessonOrm.lesson_id == lesson.id,
-                                          StudentLessonOrm.student_id == student_id)
-                                  .first())
-
-                if student_lesson:
-                    setattr(lesson, "status", student_lesson.status)
-                    setattr(lesson, "score", student_lesson.score)
-
-                if lesson.type == LessonType.test:
-                    test_id = db.query(TestOrm.id).filter(TestOrm.lesson_id == lesson.id).scalar()
-                    quantity_question = db.query(TestQuestionOrm).filter(TestQuestionOrm.test_id == test_id).count()
-                    setattr(lesson, "q_count", quantity_question)
+            if course.lessons:
+                lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
+                get_lesson_info(db=self.db, lessons=lessons)
 
         return courses
-    else:
-        return courses
 
+    def select_course_title_by_id(self, course_id: int):
+        return self.db.query(self.course_model.title).filter(self.course_model.id == course_id).scalar()
 
-def select_course_name_by_id_db(db: Session, course_id: int):
-    return db.query(CourseOrm.title).filter(CourseOrm.id == course_id).scalar()
+    def select_course_info(self, course_id: int):
+        return (self.db.query(self.course_model)
+                .filter(self.course_model.id == course_id)
+                .options(joinedload(self.course_model.category))
+                .first())
 
+    def update_course(self, data: CourseUpdate, course: CourseOrm):
+        for key, value in data.dict().items():
+            if value:
+                setattr(course, key, value)
 
-def update_course_db(db: Session, data: CourseUpdate, course: CourseOrm):
-    for key, value in data.dict().items():
-        if value:
-            setattr(course, key, value)
+        self.db.commit()
+        self.db.refresh(course)
+        return course
 
-    db.commit()
-    db.refresh(course)
-    return course
+    def update_quantity_lecture(self, course_id: int):
+        (self.db.query(self.course_model)
+         .filter(self.course_model.id == course_id)
+         .update({
+            self.course_model.quantity_lecture: (self.course_model.quantity_lecture + 1)
+            if self.course_model.quantity_lecture else 1
+         }, synchronize_session=False))
 
+        self.db.commit()
 
-def update_quantity_lecture_db(db: Session, course_id: int):
-    course = select_course_by_id_db(db=db, course_id=course_id)
+    def update_quantity_test(self, course_id: int):
+        (self.db.query(self.course_model)
+         .filter(self.course_model.id == course_id)
+         .update({
+            self.course_model.quantity_test: (self.course_model.quantity_test + 1)
+            if self.course_model.quantity_test else 1
+         }, synchronize_session=False))
 
-    if course.quantity_lecture is None:
-        course.quantity_lecture = 1
-        db.commit()
-        db.refresh(course)
+        self.db.commit()
 
-    else:
-        course.quantity_lecture += 1
-        db.commit()
-        db.refresh(course)
+    def update_course_icon(self, data: CourseIconUpdate, icon_id: int):
+        icon = self.db.query(self.icon_model).filter(self.icon_model.id == icon_id).first()
 
+        for key, value in data.dict().items():
+            if value:
+                setattr(icon, key, value)
 
-def update_quantity_test_db(db: Session, course_id: int):
-    course = select_course_by_id_db(db=db, course_id=course_id)
+        self.db.commit()
+        self.db.refresh(icon)
+        return icon
 
-    if course.quantity_test is None:
-        course.quantity_test = 1
-        db.commit()
-        db.refresh(course)
+    def delete_course(self, course: CourseOrm) -> None:
+        self.db.delete(course)
+        self.db.commit()
 
-    else:
-        course.quantity_test += 1
-        db.commit()
-        db.refresh(course)
+    def search_course(self, query: str):
+        regex_query = fr"\y{query}.*"
+        return self.db.query(self.course_model).filter(self.course_model.title.op('~*')(regex_query)).all()
 
+    def select_popular_course(self):
+        popular_course_ids = (self.db.query(StudentCourseAssociation.course_id,
+                                            func.count(StudentCourseAssociation.course_id).label('course_count'))
+                              .group_by(StudentCourseAssociation.course_id)
+                              .order_by(func.count(StudentCourseAssociation.course_id).desc())
+                              .limit(10)
+                              .all())
 
-def update_course_icon_db(db: Session, data: CourseIconUpdate, icon_id: int):
-    icon = db.query(CourseIconOrm).filter(CourseIconOrm.id == icon_id).first()
-
-    for key, value in data.dict().items():
-        if value:
-            setattr(icon, key, value)
-
-    db.commit()
-    db.refresh(icon)
-    return icon
-
-
-def delete_course_db(db: Session, course: CourseOrm):
-    db.delete(course)
-    db.commit()
-
-
-def subscribe_student_to_course_db(db: Session, student_id: int, course_id: int):
-    new_subscribe = StudentCourseAssociation(
-        student_id=student_id,
-        course_id=course_id,
-        status=CourseStatus.in_progress
-    )
-
-    db.add(new_subscribe)
-    db.commit()
-    db.refresh(new_subscribe)
-    return new_subscribe
-
-
-def select_student_course_db(db: Session, course_id: int, student_id: int):
-    return (db.query(StudentCourseAssociation)
-            .filter(StudentCourseAssociation.course_id == course_id,
-                    StudentCourseAssociation.student_id == student_id)
-            .first())
-
-
-def select_count_student_course_db(db: Session, course_id: int):
-    return db.query(StudentCourseAssociation).filter(StudentCourseAssociation.course_id == course_id).count()
-
-
-def update_course_present(db: Session, student_course: StudentCourseAssociation, progress: int):
-    student_course.progress = progress
-    db.commit()
-    db.refresh(student_course)
-
-
-def update_course_score(db: Session, student_course: StudentCourseAssociation, score: int):
-    student_course.grade += score
-    db.commit()
-    db.refresh(student_course)
-
-
-def update_course_status(db: Session, student_course: StudentCourseAssociation):
-    student_course.status = CourseStatus.completed.value
-    db.commit()
-    db.refresh(student_course)
-
-
-def select_students_whose_bought_courses(db: Session, course_id: int):
-    course_alias = aliased(CourseOrm)
-
-    courses_ids = (
-        db.query(CourseOrm.id)
-        .filter(CourseOrm.category_id == db.query(course_alias.category_id)
-                .filter(course_alias.id == course_id)
-                .subquery(),
-                CourseOrm.id != course_id)
-        .all()
-    )
-    courses_ids_list = [course[0] for course in courses_ids]
-
-    return (db.query(StudentCourseAssociation.student_id.label("id"))
-            .filter(StudentCourseAssociation.course_id.in_(courses_ids_list))
-            .group_by(StudentCourseAssociation.student_id)
-            .having(func.count(StudentCourseAssociation.course_id) == len(courses_ids_list))
-            .all())
-
-
-def select_course_info_db(db: Session, course_id: int):
-    return db.query(CourseOrm).filter(CourseOrm.id == course_id).options(joinedload(CourseOrm.category)).first()
+        course_ids = [course_id for course_id, count in popular_course_ids]
+        popular_courses = self.db.query(self.course_model).filter(self.course_model.id.in_(course_ids)).all()
+        return popular_courses

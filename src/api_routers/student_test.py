@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from src.celery import update_student_course_grade, update_student_course_progress, update_student_lesson_status
+from src.celery import celery_tasks
 from src.crud.student_lesson import confirm_student_test_db, select_student_lesson_db
 from src.crud.student_test import (create_student_attempts_db, create_student_test_answer_db,
                                    create_student_test_matching_db, select_student_answers_db,
@@ -11,6 +11,7 @@ from src.enums import QuestionTypeOption, UserType
 from src.models import UserOrm
 from src.schemas.student_test import StudentTest, SubmitStudentTest
 from src.session import get_db
+from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
 from src.utils.student_test import (check_student_default_test, check_student_multiple_choice_test,
                                     check_student_test_matching)
@@ -98,7 +99,7 @@ async def get_test_attempts(
         student_id = user.student.id
         return select_student_attempts_db(db=db, test_id=test_id, student_id=student_id)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only students")
+        raise PermissionDeniedException()
 
 
 @router.get("/attempt/{attempt_id}")
@@ -110,7 +111,7 @@ async def get_attempt_info(
     if user.usertype == UserType.student.value:
         return select_student_answers_db(db=db, attempt_id=attempt_id)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only students")
+        raise PermissionDeniedException()
 
 
 @router.post("/submit")
@@ -127,12 +128,12 @@ async def submit_test_attempt(
         )
 
         # celery logic
-        update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        update_student_course_grade.delay(
+        celery_tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        celery_tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        celery_tasks.update_student_course_grade.delay(
             student_id=data.student_id, lesson_id=data.lesson_id, score=test_attempt.attempt_score
         )
 
         return {"Message": f"Your test was submitted. Score - {test_attempt.attempt_score}"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only for students")
+        raise PermissionDeniedException()

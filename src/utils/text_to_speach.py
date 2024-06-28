@@ -4,20 +4,7 @@ import wave
 
 import pyttsx3
 
-# os.environ["PATH"] += os.pathsep + "/usr/local/bin/ffmpeg"
-# os.environ["PATH"] += os.pathsep + "/usr/local/bin/espeak"
-
-SPEECHES_DIR = "static/speeches"
-MALE_VOICES = [
-    "com.apple.speech.synthesis.voice.Alex",
-    "com.apple.speech.synthesis.voice.daniel",
-    "com.apple.speech.synthesis.voice.rishi"
-]
-FEMALE_VOICE = [
-    "com.apple.speech.synthesis.voice.karen",
-    "com.apple.speech.synthesis.voice.moira",
-    "com.apple.speech.synthesis.voice.samantha"
-]
+from src.config import FEMALE_VOICE, MALE_VOICES, SPEECHES_DIR
 
 
 def text_to_speach(text: str, lecture_id: int):
@@ -32,13 +19,13 @@ def text_to_speach(text: str, lecture_id: int):
     for voice in voices:
         if voice.id in MALE_VOICES:
             engine.setProperty("voice", voice.id)
-            engine.save_to_file(text=text, filename=f"{SPEECHES_DIR}/lecture{lecture_id}/{voice.name.lower()}.mp3")
-            res.update({f"path{voice.name}": f"{SPEECHES_DIR}/lecture{lecture_id}/{voice.name.lower()}.mp3"})
+            engine.save_to_file(text=text, filename=f"{folder}/{voice.name.lower()}.mp3")
+            res.update({f"path{voice.name}": f"{folder}/{voice.name.lower()}.mp3"})
 
         elif voice.id in FEMALE_VOICE:
             engine.setProperty("voice", voice.id)
-            engine.save_to_file(text=text, filename=f"{SPEECHES_DIR}/lecture{lecture_id}/{voice.name.lower()}.mp3")
-            res.update({f"path{voice.name}": f"{SPEECHES_DIR}/lecture{lecture_id}/{voice.name.lower()}.mp3"})
+            engine.save_to_file(text=text, filename=f"{folder}/{voice.name.lower()}.mp3")
+            res.update({f"path{voice.name}": f"{folder}/{voice.name.lower()}.mp3"})
 
     engine.runAndWait()
 

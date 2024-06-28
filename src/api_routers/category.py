@@ -1,16 +1,16 @@
-from typing import List, Union
+from typing import Union
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 from sqlalchemy.orm import Session
 
-from src.crud.category import (create_category_db, delete_category_db, select_all_categories_db,
-                               select_category_by_id_db, update_category_db)
-from src.enums import UserType
+from src.crud.category import CategoryRepository
+from src.enums import StaticFileType, UserType
 from src.models import CategoryOrm, UserOrm
 from src.schemas.category import CategoryCreate, CategoryOut, CategoryUpdate
 from src.session import get_db
+from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.save_files import save_category_course_avatar
+from src.utils.save_files import save_file
 
 router = APIRouter(prefix="/category")
 
@@ -23,19 +23,22 @@ async def create_category(
 ) -> Union[CategoryOrm, Response]:
 
     if user.usertype == UserType.moder.value:
-        return create_category_db(db=db, data=data)
+        repository = CategoryRepository(db=db)
+        return repository.create_category(data=data)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.get("/all")
 async def get_categories(db: Session = Depends(get_db)):
-    return select_all_categories_db(db=db)
+    repository = CategoryRepository(db=db)
+    return repository.select_all_categories()
 
 
 @router.get("/{category_id}")
 async def get_category(category_id: int, db: Session = Depends(get_db)):
-    return select_category_by_id_db(db=db, category_id=category_id)
+    repository = CategoryRepository(db=db)
+    return repository.select_category_by_id(category_id=category_id)
 
 
 @router.put("/update/{category_id}")
@@ -46,9 +49,10 @@ async def update_category(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        return update_category_db(db=db, data=data, category_id=category_id)
+        repository = CategoryRepository(db=db)
+        return repository.update_category(data=data, category_id=category_id)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/upload/image")
@@ -57,10 +61,10 @@ async def upload_category_image(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        path = save_category_course_avatar(image)
+        path = save_file(file=image, file_type=StaticFileType.category_avatar.value)
         return {"newPath": path}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.delete("/delete/{category_id}")
@@ -70,7 +74,8 @@ async def delete_category(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        delete_category_db(db=db, category_id=category_id)
+        repository = CategoryRepository(db=db)
+        repository.delete_category(category_id=category_id)
         return {"message": "Category have been deleted"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()

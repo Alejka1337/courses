@@ -63,3 +63,13 @@ class MessageSenderType(str, EnumType):
 class NotificationType(str, EnumType):
     change_course = "change_course"
     added_course = "added_course"
+
+
+class StaticFileType(str, EnumType):
+    student_avatar = "student_avatar"
+    category_avatar = "category_avatar"
+    course_image = "course_image"
+    course_icon = "course_icon"
+    lesson_image = "lesson_image"
+    instruction_file = "instruction_file"
+    chat_file = "chat_file"

@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from src.enums import QuestionTypeOption
 from src.models import ExamAnswerOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm, LessonOrm
+from src.schemas.test import ExamAnswerUpdate, ExamConfigUpdate, ExamMatchingUpdate, ExamQuestionUpdate
 
 
 class ExamRepository:
@@ -187,3 +188,79 @@ class ExamRepository:
             return lesson
         else:
             return lesson
+
+    def update_exam_config(self, exam_id: int, data: ExamConfigUpdate):
+        exam = self.db.query(self.exam_model).filter(self.exam_model.id == exam_id).first()
+
+        for field, value in data.dict(exclude_unset=True).items():
+            setattr(exam, field, value)
+
+        self.db.commit()
+        self.db.refresh(exam)
+
+    def update_question(self, question_id: int, data: ExamQuestionUpdate):
+        question = self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
+
+        for field, value in data.dict(exclude_unset=True).items():
+            setattr(question, field, value)
+
+        self.db.commit()
+        self.db.refresh(question)
+
+    def delete_question(self, question_id: int):
+        question = self.select_exam_question(question_id=question_id)
+
+        if question.q_type == QuestionTypeOption.matching:
+            match_left = (self.db.query(self.matching_left_model)
+                          .filter(self.matching_left_model.question_id == question.id)
+                          .all())
+
+            match_right = (self.db.query(self.matching_right_model)
+                           .filter(self.matching_right_model.question_id == question.id)
+                           .all())
+
+            for ml in match_left:
+                self.db.delete(ml)
+
+            for mr in match_right:
+                self.db.delete(mr)
+
+            self.db.delete(question)
+            self.db.commit()
+
+        else:
+            answers = self.select_exam_answers(question_id=question.id)
+            for answer in answers:
+                self.db.delete(answer)
+
+            self.db.delete(question)
+            self.db.commit()
+
+    def update_answer(self, answer_id: int, data: ExamAnswerUpdate):
+        answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
+
+        for field, value in data.dict(exclude_unset=True).items():
+            setattr(answer, field, value)
+
+        self.db.commit()
+        self.db.refresh(answer)
+
+    def delete_answer(self, answer_id: int):
+        answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
+        self.db.delete(answer)
+        self.db.commit()
+
+    def update_matching(self, left_id: int, data: ExamMatchingUpdate):
+        left = self.db.query(self.matching_left_model).filter(self.matching_left_model.id == left_id).first()
+
+        if data.left_text:
+            left.text = data.left_text
+
+        if data.right_text:
+            right = (self.db.query(self.matching_right_model)
+                     .filter(self.matching_right_model.id == left.right_id)
+                     .first())
+            right.text = data.right_text
+
+        self.db.commit()
+        self.db.refresh(left)

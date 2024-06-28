@@ -78,19 +78,7 @@ def serialize_messages(db: Session, messages: list[ChatMessageOrm]):
     result = []
 
     for message in messages:
-        message_data = {
-            "id": message.id,
-            "message": message.message,
-            "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            "sender_id": message.sender_id,
-            "sender_type": message.sender_type.value,
-            "recipient_id": message.recipient_id,
-            "recipient_type": message.recipient_type.value,
-            "files": [
-                {"file_path": file.file_path, "file_type": file.file_type,
-                 "file_name": file.file_name, "file_size": file.file_size}
-                for file in message.files if message.files]
-        }
+        message_data = get_message_data(message)
 
         user_avatar = select_student_image_db(db=db, user_id=message.sender_id)
         message_data["user_image"] = user_avatar.path if user_avatar else None
@@ -108,7 +96,23 @@ def serialize_messages(db: Session, messages: list[ChatMessageOrm]):
 
 
 def serialize_new_message(db: Session, message: ChatMessageOrm):
-    data = {
+    message_data = get_message_data(message)
+
+    user_avatar = select_student_image_db(db=db, user_id=message.sender_id)
+    message_data["user_image"] = user_avatar.path if user_avatar else None
+
+    if message.sender_type == MessageSenderType.student.value:
+        fullname = select_student_fullname_db(db=db, user_id=message.sender_id)
+        message_data["fullname"] = fullname
+    else:
+        fullname = select_moder_fullname_db(db=db, user_id=message.sender_id)
+        message_data["fullname"] = fullname
+
+    return {"data": message_data, "type": "new-message"}
+
+
+def get_message_data(message: ChatMessageOrm) -> dict:
+    message_data = {
         "id": message.id,
         "message": message.message,
         "timestamp": message.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
@@ -122,14 +126,4 @@ def serialize_new_message(db: Session, message: ChatMessageOrm):
             for file in message.files if message.files]
     }
 
-    user_avatar = select_student_image_db(db=db, user_id=message.sender_id)
-    data["user_image"] = user_avatar.path if user_avatar else None
-
-    if message.sender_type == MessageSenderType.student.value:
-        fullname = select_student_fullname_db(db=db, user_id=message.sender_id)
-        data["fullname"] = fullname
-    else:
-        fullname = select_moder_fullname_db(db=db, user_id=message.sender_id)
-        data["fullname"] = fullname
-
-    return {"data": data, "type": "new-message"}
+    return message_data

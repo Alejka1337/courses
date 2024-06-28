@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from src.crud.instruction import InstructionRepository
-from src.enums import UserType
+from src.enums import StaticFileType, UserType
 from src.models import UserOrm
 from src.schemas.instruction import InstructionCreate, InstructionUpdate
 from src.session import get_db
+from src.utils.exceptions import InstructionNotFoundException, PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.save_files import save_instruction_file
+from src.utils.save_files import save_file
 
 router = APIRouter(prefix="/instruction")
 
@@ -18,7 +19,7 @@ async def upload_instruction_file(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        file_path = save_instruction_file(file=file)
+        file_path = save_file(file=file, file_type=StaticFileType.instruction_file.value)
         return {
             "file_path": file_path,
             "file_size": file.size,
@@ -26,7 +27,7 @@ async def upload_instruction_file(
             "file_type": file.filename.split(".")[-1]
         }
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.post("/create")
@@ -45,10 +46,7 @@ async def create_instruction(
 
         return instruction
     else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permission denied"
-        )
+        raise PermissionDeniedException()
 
 
 @router.get("/general")
@@ -72,10 +70,7 @@ async def get_courses_instruction(
         return repository.select_course_instruction(categories=list(categories))
 
     else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Instruction not found"
-        )
+        raise InstructionNotFoundException()
 
 
 @router.put("/update/{instruction_id}")
@@ -97,10 +92,7 @@ async def update_instruction(
         return instruction
 
     else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only moderator can update instruction"
-        )
+        raise PermissionDeniedException()
 
 
 @router.delete("/delete/{instruction_id}")
@@ -115,7 +107,4 @@ async def delete_instruction(
         return {"message": "Instruction successfully deleted"}
 
     else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only moderator can delete instruction"
-        )
+        raise InstructionNotFoundException()

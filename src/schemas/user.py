@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -47,3 +48,13 @@ class LoginWithGoogle(BaseModel):
 
 class BuyCourse(BaseModel):
     course_id: int
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    access_token_expire: datetime
+    user_id: int
+    username: str
+    refresh_token: str
+    refresh_token_expire: datetime
+    message: str

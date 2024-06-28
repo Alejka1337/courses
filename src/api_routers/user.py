@@ -1,13 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from src.celery import (activate_user_task, create_student_lesson, resend_activate_code, resend_reset_pass_code,
-                        send_activate_code, send_reset_pass_code)
-from src.crud.course import subscribe_student_to_course_db
+from src.celery import celery_tasks
+from src.crud.category import CategoryRepository
+from src.crud.course import CourseRepository
+from src.crud.lesson import search_lesson
+from src.crud.student_course import subscribe_student_to_course_db
 from src.crud.user import (create_new_student, create_new_student_google, create_new_user, create_new_user_with_google,
                            create_student_image_db, select_activate_code, select_reset_code, select_student_by_email,
                            select_student_by_user_id, select_student_courses_db, select_student_image_by_id_db,
@@ -15,16 +17,21 @@ from src.crud.user import (create_new_student, create_new_student_google, create
                            select_user_by_username, update_student_email_db, update_student_info_db,
                            update_student_main_image_db, update_student_studying_time, update_user_password,
                            update_user_token, update_user_username_db, user_logout_db)
-from src.enums import UserType
+from src.enums import StaticFileType, UserType
 from src.models import UserOrm
-from src.schemas.user import (BuyCourse, LoginWithGoogle, ResetPassword, SetNewPassword, UserActivate, UsernameUpdate,
-                              UserRegistration, UserUpdate)
+from src.schemas.user import (AuthResponse, BuyCourse, LoginWithGoogle, ResetPassword, SetNewPassword, UserActivate,
+                              UsernameUpdate, UserRegistration, UserUpdate)
 from src.session import get_db
-from src.utils.decode_code import decode_google_token
-from src.utils.get_user import decode_and_check_refresh_token, get_current_user
+from src.utils.decode_code import decode_and_check_refresh_token, decode_google_token
+from src.utils.exceptions import (CookieNotFoundException, EmailDoesExistException, EmailNotFoundException,
+                                  InvalidActivateCodeException, InvalidPasswordException, InvalidResetCodeException,
+                                  InvalidUsernameException, NotActivateAccountException, PermissionDeniedException,
+                                  UpdateEmailException, UpdateUsernameException, UsernameDoesExistException)
+from src.utils.get_user import get_current_user
 from src.utils.info_me import set_info_me
 from src.utils.password import check_password
-from src.utils.save_files import save_student_avatar
+from src.utils.responses import after_auth_response
+from src.utils.save_files import save_file
 from src.utils.token import create_access_token, create_refresh_token
 
 router = APIRouter(prefix="/user")
@@ -34,25 +41,23 @@ router = APIRouter(prefix="/user")
 async def create_user(
         form_data: UserRegistration,
         db: Session = Depends(get_db)
+
 ):
     student = select_student_by_email(db=db, email=form_data.email)
     if student:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"User with email {form_data.email} does exist"
-        )
+        raise EmailDoesExistException(form_data.email)
 
     user = select_user_by_username(db=db, username=form_data.username)
 
     if user:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"User with username {form_data.username} does exist"
-        )
+        raise UsernameDoesExistException(form_data.username)
 
     new_user = create_new_user(db=db, data=form_data)
     create_new_student(db=db, data=form_data, user_id=new_user.id)
-    send_activate_code.delay(user_id=new_user.id, email=form_data.email)
+
+    celery_tasks.send_activate_code.delay(user_id=new_user.id, email=form_data.email)
+
+    # send_activate_code.delay(user_id=new_user.id, email=form_data.email)
     return JSONResponse(
         content={"message": "Successful registration. We have sent a confirmation code to your email"},
         status_code=201
@@ -67,31 +72,29 @@ async def login(
     user = select_user_by_username(db=db, username=form_data.username)
 
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username")
+        raise InvalidUsernameException()
+
     if user.is_active is False:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Activate your account")
+        raise NotActivateAccountException()
+
     if not check_password(form_data.password, user.hashed_pass):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        raise InvalidPasswordException()
 
     data = {"sub": user.username}
     access_token, access_token_expire = create_access_token(data=data)
     refresh_token, refresh_token_expire = create_refresh_token(data=data)
 
-    response = JSONResponse(
-        content={"access_token": access_token, "token_type": "bearer",
-                 "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                 "user_id": user.id, "username": user.username, "message": "Success login"},
-        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"})
-
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        secure=True,
-        httponly=True,
-        expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-        samesite="none",
-        path="/",
+    response_data = AuthResponse(
+        access_token=access_token,
+        access_token_expire=access_token_expire,
+        user_id=user.id,
+        username=user.username,
+        refresh_token=refresh_token,
+        refresh_token_expire=refresh_token_expire,
+        message="Success login"
     )
+
+    response = after_auth_response(response_data=response_data)
 
     update_user_token(
         db=db, user=user, access_token=access_token, refresh_token=refresh_token,
@@ -107,15 +110,7 @@ async def logout(
         user: UserOrm = Depends(get_current_user)
 ):
     response = JSONResponse(content={"message": "User have been logout"})
-    response.set_cookie(
-        key="refresh_token",
-        value="",
-        secure=True,
-        httponly=True,
-        samesite="none",
-        path="/",
-    )
-
+    response.set_cookie(key="refresh_token", value="", secure=True, httponly=True, samesite="none", path="/")
     user_logout_db(db=db, user=user)
     return response
 
@@ -139,27 +134,21 @@ async def refresh(
             exp_token=access_token_expire.strftime("%Y-%m-%d %H:%M:%S")
         )
 
-        response = JSONResponse(
-            content={"access_token": access_token, "token_type": "bearer",
-                     "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                     "user_id": user.id, "username": user.username,
-                     "message": "Access and refresh tokens have been updated"}
+        response_data = AuthResponse(
+            access_token=access_token,
+            access_token_expire=access_token_expire,
+            user_id=user.id,
+            username=user.username,
+            refresh_token=refresh_token,
+            refresh_token_expire=refresh_token_expire,
+            message="Access and refresh tokens have been updated"
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            secure=True,
-            httponly=True,
-            expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-            samesite="none",
-            path="/"
-        )
-
+        response = after_auth_response(response_data=response_data)
         return response
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cookies not found")
+        raise CookieNotFoundException()
 
 
 @router.post("/activate")
@@ -169,7 +158,7 @@ async def activate_user(
 ):
     user = select_user_by_username(db=db, username=activate_data.username)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invalid username")
+        raise InvalidUsernameException()
 
     db_code = select_activate_code(db=db, user_id=user.id)
 
@@ -179,31 +168,29 @@ async def activate_user(
         access_token, access_token_expire = create_access_token(data=data)
         refresh_token, refresh_token_expire = create_refresh_token(data=data)
 
-        response = JSONResponse(
-            content={"access_token": access_token, "token_type": "bearer",
-                     "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                     "user_id": user.id, "username": user.username, "message": "Success login"},
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        response_data = AuthResponse(
+            access_token=access_token,
+            access_token_expire=access_token_expire,
+            user_id=user.id,
+            username=user.username,
+            refresh_token=refresh_token,
+            refresh_token_expire=refresh_token_expire,
+            message="Success login"
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-            samesite="none",
-            path="/",
-        )
+        response = after_auth_response(response_data=response_data)
 
-        activate_user_task.delay(
-            user_id=user.id, access_token=access_token,  refresh_token=refresh_token,
+        celery_tasks.activate_user.delay(
+            user_id=user.id,
+            access_token=access_token,
+            refresh_token=refresh_token,
             exp_token=access_token_expire.strftime("%Y-%m-%d %H:%M:%S")
         )
 
         return response
 
     else:
-        raise HTTPException(status_code=status.HTTP_424_FAILED_DEPENDENCY, detail="Invalid activate code")
+        raise InvalidActivateCodeException()
 
 
 @router.get("/resend-activation-code")
@@ -214,7 +201,7 @@ async def resend_activation_code(
     user = select_user_by_username(db=db, username=username)
     db_code = select_activate_code(db=db, user_id=user.id)
     student = select_student_by_user_id(db=db, user_id=user.id)
-    resend_activate_code.delay(email=student.email, code=db_code)
+    celery_tasks.resend_activate_code.delay(email=student.email, code=db_code)
     return {"message": "We have sent a confirmation code to your email"}
 
 
@@ -223,9 +210,9 @@ async def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
     student = select_student_by_email(db=db, email=data.email)
 
     if student is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="email not found")
+        raise EmailNotFoundException()
 
-    send_reset_pass_code.delay(user_id=student.user_id, email=data.email)
+    celery_tasks.send_reset_pass_code.delay(user_id=student.user_id, email=data.email)
     return {"message": "We have sent a password reset code to your email."}
 
 
@@ -249,27 +236,21 @@ async def set_new_password(
             exp_token=access_token_expire.strftime("%Y-%m-%d %H:%M:%S")
         )
 
-        response = JSONResponse(
-            content={"access_token": access_token, "token_type": "bearer",
-                     "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                     "user_id": user.id, "username": user.username, "message": "Success updated password"},
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        response_data = AuthResponse(
+            access_token=access_token,
+            access_token_expire=access_token_expire,
+            user_id=user.id,
+            username=user.username,
+            refresh_token=refresh_token,
+            refresh_token_expire=refresh_token_expire,
+            message="Success updated password"
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            secure=True,
-            httponly=True,
-            expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-            samesite="none",
-            path="/",
-        )
-
+        response = after_auth_response(response_data=response_data)
         return response
 
     else:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="reset code invalid")
+        raise InvalidResetCodeException()
 
 
 @router.get("/resend-password-reset-code")
@@ -279,7 +260,7 @@ async def resend_password_reset_code(
 ):
     student = select_student_by_email(db=db, email=email)
     code = select_reset_code(db=db, user_id=student.user_id)
-    resend_reset_pass_code.delay(email=email, code=code[0])
+    celery_tasks.resend_reset_pass_code.delay(email=email, code=code[0])
     return {"message": "We have sent a reset password code to your email"}
 
 
@@ -300,23 +281,17 @@ async def login_with_google(
             exp_token=access_token_expire.strftime("%Y-%m-%d %H:%M:%S")
         )
 
-        response = JSONResponse(
-            content={"access_token": access_token, "token_type": "bearer",
-                     "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                     "user_id": user.id, "username": user.username, "message": "Success updated password"},
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        response_data = AuthResponse(
+            access_token=access_token,
+            access_token_expire=access_token_expire,
+            user_id=user.id,
+            username=user.username,
+            refresh_token=refresh_token,
+            refresh_token_expire=refresh_token_expire,
+            message="Success login"
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            secure=True,
-            httponly=True,
-            expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-            samesite="none",
-            path="/",
-        )
-
+        response = after_auth_response(response_data=response_data)
         return response
 
     else:
@@ -341,23 +316,17 @@ async def login_with_google(
             picture=decoded_data["picture"]
         )
 
-        response = JSONResponse(
-            content={"access_token": access_token, "token_type": "bearer",
-                     "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                     "user_id": user.id, "username": user.username, "message": "Success updated password"},
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        response_data = AuthResponse(
+            access_token=access_token,
+            access_token_expire=access_token_expire,
+            user_id=user.id,
+            username=user.username,
+            refresh_token=refresh_token,
+            refresh_token_expire=refresh_token_expire,
+            message="Success login"
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            secure=True,
-            httponly=True,
-            expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-            samesite="none",
-            path="/",
-        )
-
+        response = after_auth_response(response_data=response_data)
         return response
 
 
@@ -367,8 +336,7 @@ async def update_user_image(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    image_path = save_student_avatar(file=image)
-
+    image_path = save_file(file=image, file_type=StaticFileType.student_avatar.value)
     main_image = select_student_image_db(db=db, user_id=user.id)
     if main_image:
         update_student_main_image_db(db=db, image=main_image, flag=False)
@@ -414,26 +382,20 @@ async def update_user_username(
             exp_token=access_token_expire.strftime("%Y-%m-%d %H:%M:%S")
         )
 
-        response = JSONResponse(
-            content={"access_token": access_token, "token_type": "bearer",
-                     "access_token_expire": access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-                     "user_id": user.id, "username": user.username, "message": "Success updated username"},
-            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        response_data = AuthResponse(
+            access_token=access_token,
+            access_token_expire=access_token_expire,
+            user_id=user.id,
+            username=user.username,
+            refresh_token=refresh_token,
+            refresh_token_expire=refresh_token_expire,
+            message="Success updated username"
         )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            secure=True,
-            httponly=True,
-            expires=refresh_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
-            samesite="none",
-            path="/",
-        )
-
+        response = after_auth_response(response_data=response_data)
         return response
     else:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This username is already in use")
+        raise UpdateUsernameException()
 
 
 @router.put("/update/info")
@@ -452,7 +414,7 @@ async def update_user_info(
         if res is None:
             update_student_email_db(db=db, student=student, email=data.email)
         else:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This email is already in use")
+            raise UpdateEmailException()
 
     update_student_info_db(db=db, student=student, data=data)
     return student
@@ -468,7 +430,7 @@ async def update_studying_time(
         update_student_studying_time(db=db, time=time, user_id=user.id)
         return {"message": "Success"}
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+        raise PermissionDeniedException()
 
 
 @router.post("/buy-course")
@@ -479,10 +441,10 @@ async def buy_course(
 ):
     if user.usertype == UserType.student.value:
         student_course = subscribe_student_to_course_db(db=db, student_id=user.student.id, course_id=data.course_id)
-        create_student_lesson.delay(student_id=user.student.id, course_id=data.course_id)
+        celery_tasks.create_student_lesson.delay(student_id=user.student.id, course_id=data.course_id)
         return student_course
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+        raise PermissionDeniedException()
 
 
 @router.get("/info/me")
@@ -494,3 +456,16 @@ async def info_me(
     image = select_student_image_db(db=db, user_id=user.id)
     student_courses = select_student_courses_db(db=db, student_id=student.id)
     return set_info_me(user=user, student=student, image=image, courses=student_courses)
+
+
+@router.get("/search")
+async def search(query: str, db: Session = Depends(get_db),):
+    results = dict()
+    category_repository = CategoryRepository(db=db)
+    results["categories"] = category_repository.search_category(query=query)
+
+    course_repository = CourseRepository(db=db)
+    results["courses"] = course_repository.search_course(query=query)
+
+    results["lessons"] = search_lesson(db=db, query=query)
+    return results

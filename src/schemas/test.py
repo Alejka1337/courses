@@ -26,9 +26,18 @@ class TestQuestionBase(BaseModel):
     answers: List[Union[TestAnswerBase, TestMatchingBase]]
 
 
+class ExamQuestionBase(TestQuestionBase):
+    pass
+
+
 class TestConfigUpdate(BaseModel):
     score: Optional[int] = None
     attempts: Optional[int] = None
+
+
+class ExamConfigUpdate(BaseModel):
+    timer: Optional[int] = None
+    min_score: Optional[int] = None
 
 
 class TestQuestionUpdate(BaseModel):
@@ -39,12 +48,40 @@ class TestQuestionUpdate(BaseModel):
     image_path: Optional[str] = None
 
 
+class ExamQuestionUpdate(TestQuestionUpdate):
+    pass
+
+
 class TestAnswerUpdate(BaseModel):
     a_text: Optional[str] = None
     is_correct: Optional[bool] = False
     image_path: Optional[str] = None
 
 
+class ExamAnswerUpdate(TestAnswerUpdate):
+    pass
+
+
 class TestMatchingUpdate(BaseModel):
     right_text: Optional[str] = None
     left_text: Optional[str] = None
+
+
+class ExamMatchingUpdate(TestMatchingUpdate):
+    pass
+
+
+class TestAnswerAdd(TestAnswerBase):
+    question_id: int
+
+
+class ExamAnswerAdd(TestAnswerAdd):
+    pass
+
+
+class TestMatchingAdd(TestMatchingBase):
+    question_id: int
+
+
+class ExamMatchingAdd(TestMatchingAdd):
+    pass

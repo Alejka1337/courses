@@ -3,75 +3,33 @@ from datetime import datetime
 
 from fastapi import UploadFile
 
-
-def save_student_avatar(file: UploadFile):
-    folder = "static/images/" + datetime.now().strftime("%d-%m-%Y")
-    file_path = os.path.join(folder, file.filename)
-    os.makedirs(folder, exist_ok=True)
-
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
-
-    return file_path
+from src.config import (CATEGORY_AVATAR_PATH, CHAT_FILES_PATH, COURSE_ICON_PATH, COURSE_IMAGE_PATH,
+                        INSTRUCTION_FILES_PATH, LESSON_IMAGE_PATH, STUDENT_AVATAR_PATH)
+from src.enums import StaticFileType
 
 
-def save_category_course_avatar(file: UploadFile):
-    folder = "static/categories/" + datetime.now().strftime("%d-%m-%Y")
-    file_path = os.path.join(folder, file.filename)
-    os.makedirs(folder, exist_ok=True)
+def save_file(file: UploadFile, file_type: StaticFileType):
+    if file_type == StaticFileType.student_avatar.value:
+        folder = STUDENT_AVATAR_PATH + datetime.now().strftime("%d-%m-%Y")
 
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
+    elif file_type == StaticFileType.category_avatar.value:
+        folder = CATEGORY_AVATAR_PATH + datetime.now().strftime("%d-%m-%Y")
 
-    return file_path
+    elif file_type == StaticFileType.course_image.value:
+        folder = COURSE_IMAGE_PATH + datetime.now().strftime("%d-%m-%Y")
 
+    elif file_type == StaticFileType.course_icon.value:
+        folder = COURSE_ICON_PATH + datetime.now().strftime("%d-%m-%Y")
 
-def save_course_image(file: UploadFile):
-    folder = "static/course/image/" + datetime.now().strftime("%d-%m-%Y")
-    file_path = os.path.join(folder, file.filename)
-    os.makedirs(folder, exist_ok=True)
+    elif file_type == StaticFileType.lesson_image.value:
+        folder = LESSON_IMAGE_PATH + datetime.now().strftime("%d-%m-%Y")
 
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
+    elif file_type == StaticFileType.instruction_file.value:
+        folder = INSTRUCTION_FILES_PATH + datetime.now().strftime("%d-%m-%Y")
 
-    return file_path
+    else:
+        folder = CHAT_FILES_PATH + datetime.now().strftime("%d-%m-%Y")
 
-
-def save_course_icon(file: UploadFile):
-    folder = "static/course/icon/" + datetime.now().strftime("%d-%m-%Y")
-    file_path = os.path.join(folder, file.filename)
-    os.makedirs(folder, exist_ok=True)
-
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
-
-    return file_path
-
-
-def save_lesson_image(file: UploadFile):
-    folder = "static/lessons/" + datetime.now().strftime("%d-%m-%Y")
-    file_path = os.path.join(folder, file.filename)
-    os.makedirs(folder, exist_ok=True)
-
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
-
-    return file_path
-
-
-def save_instruction_file(file: UploadFile):
-    folder = "static/course/instruction/" + datetime.now().strftime("%d-%m-%Y")
-    file_path = os.path.join(folder, file.filename)
-    os.makedirs(folder, exist_ok=True)
-
-    with open(file_path, "wb") as f:
-        f.write(file.file.read())
-
-    return file_path
-
-
-def save_chat_file(file: UploadFile):
-    folder = "static/chatfiles/" + datetime.now().strftime("%d-%m-%Y")
     file_path = os.path.join(folder, file.filename)
     os.makedirs(folder, exist_ok=True)
 
@@ -87,13 +45,13 @@ def delete_files_in_directory(directory):
         file_path = os.path.join(directory, file_name)
         try:
             os.remove(file_path)
-            print(f"Файл {file_path} успешно удален")
+            print(f"File {file_path} successfully removed")
         except Exception as e:
-            print(f"Ошибка при удалении файла {file_path}: {e}")
+            print(f"Remove file {file_path} error: {e}")
 
 
 def delete_file(file_path: str):
     try:
         os.remove(file_path)
     except Exception as e:
-        print(f"Ошибка при удалении файла {file_path}: {e}")
+        print(f"Remove file {file_path} error: {e}")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
@@ -6,13 +6,14 @@ from src.crud.chat import (initialization_chat_db, save_chat_message_db, save_fi
                            save_message_file_db, save_message_files_db, save_moder_message_db, select_chat_db,
                            select_last_message_db, select_new_chat_messages_db, select_recipient_id,
                            select_student_recipient_db, update_chat_status_db, update_recipient_db)
-from src.enums import ChatStatusType, UserType
+from src.enums import ChatStatusType, StaticFileType, UserType
 from src.models import UserOrm
 from src.schemas.chat import InitializationChat
 from src.session import get_db
 from src.utils.chat_manager import ChatManager, serialize_messages, serialize_new_message
+from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.save_files import save_chat_file
+from src.utils.save_files import save_file
 
 router = APIRouter(prefix="/chat")
 chat_manager = ChatManager()
@@ -51,12 +52,12 @@ async def initialization_chat(
             return {"id": chat.id, "status": chat.status, "chat_subject": chat.chat_subject}
 
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only student can initialization new chat")
+        raise PermissionDeniedException()
 
 
 @router.post("/upload/file")
 async def upload_chat_file(file: UploadFile = File(...)):
-    file_path = save_chat_file(file=file)
+    file_path = save_file(file=file, file_type=StaticFileType.chat_file.value)
     return {"file_path": file_path, "file_name": file.filename, "file_type": "docs", "file_size": file.size}
 
 
