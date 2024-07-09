@@ -35,7 +35,7 @@ class TestConfigUpdate(BaseModel):
     attempts: Optional[int] = None
 
 
-class ExamConfigUpdate(BaseModel):
+class ExamConfigUpdate(TestConfigUpdate):
     timer: Optional[int] = None
     min_score: Optional[int] = None
 

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from src.enums import QuestionTypeOption
+from src.enums import QuestionTypeOption, LessonType
 from src.models import ExamAnswerOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm, LessonOrm
 from src.schemas.test import ExamAnswerUpdate, ExamConfigUpdate, ExamMatchingUpdate, ExamQuestionUpdate
 
@@ -72,6 +72,17 @@ class ExamRepository:
 
     def select_exam_question(self, question_id: int):
         return self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
+
+    def select_exam_score(self, course_id: int):
+        lesson_id = (self.db.query(self.lesson_model.id)
+                     .filter(self.lesson_model.course_id == course_id,
+                             self.lesson_model.type == LessonType.exam.value)
+                     .scalar())
+
+        exam = (self.db.query(self.exam_model.score.label("score"),  self.exam_model.id.label("id"))
+                .filter(self.exam_model.lesson_id == lesson_id)
+                .first())
+        return exam
 
     def select_correct_answer(self, question_id: int) -> int:
         return (self.db.query(self.answer_model.id)

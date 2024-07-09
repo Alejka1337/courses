@@ -17,16 +17,16 @@ from src.utils.save_files import save_file
 router = APIRouter(prefix="/lecture")
 
 
-@router.post("/upload/file")
-async def upload_lecture_file(
-        file: UploadFile = File(...),
-        user: UserOrm = Depends(get_current_user)
-):
-    if user.usertype == UserType.moder.value:
-        file_path = save_file(file=file, file_type=StaticFileType.lesson_image.value)
-        return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
-    else:
-        raise PermissionDeniedException()
+# @router.post("/upload/file")
+# async def upload_lecture_file(
+#         file: UploadFile = File(...),
+#         user: UserOrm = Depends(get_current_user)
+# ):
+#     if user.usertype == UserType.moder.value:
+#         file_path = save_file(file=file, file_type=StaticFileType.lesson_image.value)
+#         return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
+#     else:
+#         raise PermissionDeniedException()
 
 
 @router.post("/create/text")

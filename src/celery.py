@@ -7,6 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from celery import Celery, Task
 from src.config import BROKER_URL
 from src.crud.course import CourseRepository
+from src.crud.exam import ExamRepository
+from src.crud.test import TestRepository
 from src.crud.student_course import (select_student_course_db, select_students_whose_bought_courses,
                                      update_course_present, update_course_score)
 from src.crud.lecture import LectureRepository
@@ -17,6 +19,7 @@ from src.crud.student_lesson import (create_student_lesson_db, select_count_comp
                                      select_students_for_course_db, update_student_lesson_status_db,
                                      update_student_lesson_structure)
 from src.crud.user import activate_user, create_activation_code, create_reset_code, select_user_by_id
+from src.schemas.test import ExamConfigUpdate
 from src.enums import LessonStatus, LessonType
 from src.session import SessionLocal
 from src.utils.activate_code import generate_activation_code, generate_reset_code
@@ -216,6 +219,19 @@ class CeleryTasks:
                 course_name=new_course.title, category_name=new_course.category.title
             )
             notification_rep.create_notification_about_adding_new_course(message=message, student_id=student.id)
+
+    @celery_app.task(bind=True, base=DatabaseTask)
+    def check_correct_score(self, course_id: int):
+        exam_rep = ExamRepository(db=self.db)
+        exam = exam_rep.select_exam_score(course_id=course_id)
+
+        test_repo = TestRepository(db=self.db)
+        tests_scores = test_repo.select_tests_scores(course_id=course_id)
+
+        if exam.score + tests_scores > 200:
+            diff = 200 - (exam.score + tests_scores)
+            new_exam_score = exam.score - abs(diff)
+            exam_rep.update_exam_config(exam_id=exam.id, data=ExamConfigUpdate(score=new_exam_score))
 
 
 celery_tasks = CeleryTasks()

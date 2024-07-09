@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, Body, Request
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/lesson")
 
 @router.post("/create")
 async def create_lesson(
-        data: Annotated[LessonCreate, Depends()],
+        data: Annotated[LessonCreate, Body],
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
@@ -53,6 +53,7 @@ async def create_lesson(
             course_repository.update_quantity_test(course_id=data.course_id)
             test = create_test_db(db=db, lesson_id=lesson.id)
             response["test_id"] = test.id
+            celery_tasks.check_correct_score.delay(course_id=data.course_id)
 
         else:
             exam = create_exam_db(db=db, lesson_id=lesson.id, course_id=data.course_id)
@@ -67,14 +68,14 @@ async def create_lesson(
         raise PermissionDeniedException()
 
 
-@router.post("/upload/image")
+@router.post("/upload/file")
 async def upload_lesson_image(
         file: UploadFile = File(...),
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
         file_path = save_file(file=file, file_type=StaticFileType.lesson_image.value)
-        return {"image_path": file_path}
+        return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
     else:
         raise PermissionDeniedException()
 

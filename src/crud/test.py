@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from src.enums import LessonStatus, QuestionTypeOption
+from src.enums import LessonStatus, QuestionTypeOption, LessonType
 from src.models import (LessonOrm, StudentLessonOrm, TestAnswerOrm, TestMatchingLeftOrm, TestMatchingRightOrm, TestOrm,
                         TestQuestionOrm)
 from src.schemas.test import TestAnswerUpdate, TestConfigUpdate, TestMatchingUpdate, TestQuestionUpdate
@@ -110,6 +110,19 @@ class TestRepository:
 
     def select_test_id_by_lesson_id(self, lesson_id: int):
         return self.db.query(self.model.id).filter(self.model.lesson_id == lesson_id).scalar()
+
+    def select_tests_scores(self, course_id: int):
+        lesson_ids = (self.db.query(self.lesson_model.id.label("id"))
+                      .filter(self.lesson_model.course_id == course_id,
+                              self.lesson_model.type == LessonType.test.value)
+                      .all())
+
+        tests_scores = 0
+        for lesson in lesson_ids:
+            test_score = self.db.query(self.model.score).filter(self.model.lesson_id == lesson.id).scalar()
+            tests_scores += test_score
+
+        return tests_scores
 
     def update_test_config(self, test_id: int, data: TestConfigUpdate):
         test = self.db.query(self.model).filter(self.model.id == test_id).first()

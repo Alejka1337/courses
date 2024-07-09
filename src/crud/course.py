@@ -36,7 +36,7 @@ class CourseRepository:
                   .options(joinedload(self.course_model.lessons))
                   .first())
 
-        if course.lessons:
+        if course and course.lessons:
             lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
             get_lesson_info(db=self.db, lessons=lessons)
         return course
@@ -48,7 +48,7 @@ class CourseRepository:
                    .all())
 
         for course in courses:
-            if course.lessons:
+            if course and course.lessons:
                 lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
                 get_lesson_info(db=self.db, lessons=lessons)
 
@@ -62,7 +62,7 @@ class CourseRepository:
                    .all())
 
         for course in courses:
-            if course.lessons:
+            if course and course.lessons:
                 lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
                 get_lesson_info(db=self.db, lessons=lessons)
 
