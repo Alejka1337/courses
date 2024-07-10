@@ -11,6 +11,7 @@ def after_auth_response(response_data: AuthResponse):
             "access_token_expire": response_data.access_token_expire.strftime("%Y-%m-%d %H:%M:%S"),
             "user_id": response_data.user_id,
             "username": response_data.username,
+            "user_type": response_data.user_type,
             "message": response_data.message
         },
         headers={

@@ -68,6 +68,19 @@ class CourseRepository:
 
         return courses
 
+    def select_all_courses_for_moder(self):
+        courses = (self.db.query(self.course_model)
+                   .options(joinedload(self.course_model.icons))
+                   .options(joinedload(self.course_model.lessons))
+                   .all())
+
+        for course in courses:
+            if course and course.lessons:
+                lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
+                get_lesson_info(db=self.db, lessons=lessons)
+
+        return courses
+
     def select_course_title_by_id(self, course_id: int):
         return self.db.query(self.course_model.title).filter(self.course_model.id == course_id).scalar()
 

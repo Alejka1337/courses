@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from src.enums import UserType
+
 
 class UserRegistration(BaseModel):
     name: Optional[str] = None
@@ -55,6 +57,7 @@ class AuthResponse(BaseModel):
     access_token_expire: datetime
     user_id: int
     username: str
+    user_type: UserType
     refresh_token: str
     refresh_token_expire: datetime
     message: str

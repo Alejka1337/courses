@@ -77,12 +77,16 @@ async def get_courses(
     if authorization and authorization.startswith("Bearer") and len(authorization) > 10:
         user = decode_access_token(db=db, access_token=authorization[7:])
 
-        courses = repository.select_all_courses()
-        for course in courses:
-            select_student_course_info(db=db, course=course, student_id=user.student.id)
-            select_student_lesson_info(db=db, course=course, student_id=user.student.id)
+        if user.usertype == UserType.student.value:
+            courses = repository.select_all_courses()
+            for course in courses:
+                select_student_course_info(db=db, course=course, student_id=user.student.id)
+                select_student_lesson_info(db=db, course=course, student_id=user.student.id)
+            return courses
 
-        return courses
+        else:
+            return repository.select_all_courses_for_moder()
+
     else:
         return repository.select_all_courses()
 

@@ -89,6 +89,7 @@ async def login(
         access_token_expire=access_token_expire,
         user_id=user.id,
         username=user.username,
+        user_type=user.usertype,
         refresh_token=refresh_token,
         refresh_token_expire=refresh_token_expire,
         message="Success login"
@@ -138,6 +139,7 @@ async def refresh(
             access_token=access_token,
             access_token_expire=access_token_expire,
             user_id=user.id,
+            user_type=user.usertype,
             username=user.username,
             refresh_token=refresh_token,
             refresh_token_expire=refresh_token_expire,
@@ -172,6 +174,7 @@ async def activate_user(
             access_token=access_token,
             access_token_expire=access_token_expire,
             user_id=user.id,
+            user_type=user.usertype,
             username=user.username,
             refresh_token=refresh_token,
             refresh_token_expire=refresh_token_expire,
@@ -240,6 +243,7 @@ async def set_new_password(
             access_token=access_token,
             access_token_expire=access_token_expire,
             user_id=user.id,
+            user_type=user.usertype,
             username=user.username,
             refresh_token=refresh_token,
             refresh_token_expire=refresh_token_expire,
@@ -286,6 +290,7 @@ async def login_with_google(
             access_token_expire=access_token_expire,
             user_id=user.id,
             username=user.username,
+            user_type=user.usertype,
             refresh_token=refresh_token,
             refresh_token_expire=refresh_token_expire,
             message="Success login"
@@ -320,6 +325,7 @@ async def login_with_google(
             access_token=access_token,
             access_token_expire=access_token_expire,
             user_id=user.id,
+            user_type=user.usertype,
             username=user.username,
             refresh_token=refresh_token,
             refresh_token_expire=refresh_token_expire,
@@ -386,6 +392,7 @@ async def update_user_username(
             access_token=access_token,
             access_token_expire=access_token_expire,
             user_id=user.id,
+            user_type=user.usertype,
             username=user.username,
             refresh_token=refresh_token,
             refresh_token_expire=refresh_token_expire,
@@ -452,10 +459,18 @@ async def info_me(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    student = select_student_by_user_id(db=db, user_id=user.id)
-    image = select_student_image_db(db=db, user_id=user.id)
-    student_courses = select_student_courses_db(db=db, student_id=student.id)
-    return set_info_me(user=user, student=student, image=image, courses=student_courses)
+    if user.usertype == UserType.student.value:
+        student = select_student_by_user_id(db=db, user_id=user.id)
+        image = select_student_image_db(db=db, user_id=user.id)
+        student_courses = select_student_courses_db(db=db, student_id=student.id)
+        return set_info_me(user=user, student=student, image=image, courses=student_courses)
+    else:
+        return {
+            "id": user.id,
+            "user_type": user.usertype,
+            "username": user.username,
+            "chats": []
+        }
 
 
 @router.get("/search")
