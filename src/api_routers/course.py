@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.course import CourseRepository
-from src.crud.student_course import select_student_course_info, select_student_lesson_info
 from src.crud.lesson import check_validity_lesson
+from src.crud.student_course import select_student_course_info, select_student_lesson_info
 from src.enums import StaticFileType, UserType
 from src.models import UserOrm
 from src.schemas.course import CourseCreate, CourseIconsCreate, CourseIconUpdate, CourseUpdate

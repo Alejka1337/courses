@@ -1,13 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, Body, Request
+from fastapi import APIRouter, Body, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.course import CourseRepository
-from src.crud.student_course import select_count_student_course_db
 from src.crud.lesson import (check_lesson_number_db, create_exam_db, create_lecture_db, create_lesson_db,
                              create_test_db, select_lesson_db, update_lesson_number_db)
+from src.crud.student_course import select_count_student_course_db
 from src.enums import LessonType, StaticFileType, UserType
 from src.models import UserOrm
 from src.schemas.lesson import LessonCreate

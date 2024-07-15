@@ -8,27 +8,26 @@ from celery import Celery, Task
 from src.config import BROKER_URL
 from src.crud.course import CourseRepository
 from src.crud.exam import ExamRepository
-from src.crud.test import TestRepository
-from src.crud.student_course import (select_student_course_db, select_students_whose_bought_courses,
-                                     update_course_present, update_course_score)
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_type_and_title_db, select_lessons_by_course_db
 from src.crud.notifications import NotificationRepository
+from src.crud.student_course import (select_student_course_db, select_students_whose_bought_courses,
+                                     update_course_present, update_course_score)
 from src.crud.student_lesson import (create_student_lesson_db, select_count_completed_student_lessons_db,
                                      select_count_student_lessons_db, select_student_lessons_db,
                                      select_students_for_course_db, update_student_lesson_status_db,
                                      update_student_lesson_structure)
-from src.crud.user import activate_user, create_activation_code, create_reset_code, select_user_by_id
-from src.schemas.test import ExamConfigUpdate
+from src.crud.test import TestRepository
+from src.crud.user import UserRepository
 from src.enums import LessonStatus, LessonType
+from src.schemas.test import ExamConfigUpdate
 from src.session import SessionLocal
 from src.utils.activate_code import generate_activation_code, generate_reset_code
-from src.utils.notifications import (create_notification_text_for_add_new_course, 
+from src.utils.notifications import (create_notification_text_for_add_new_course,
                                      create_notification_text_for_update_course)
 from src.utils.save_files import delete_files_in_directory
 from src.utils.smtp import send_mail_with_code
 from src.utils.text_to_speach import create_lecture_text, text_to_speach
-
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +62,9 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def send_activate_code(self, user_id: int, email: str):
         try:
+            user_repository = UserRepository(db=self.db)
             code = generate_activation_code()
-            create_activation_code(db=self.db, code=code, user_id=user_id)
+            user_repository.create_activation_code(code=code, user_id=user_id)
             send_mail_with_code(to_email=email, mail_title="Your activation code", mail_body=code)
         except Exception as e:
             logger.error(f"Failed to send activation code: {e}")
@@ -73,10 +73,15 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def activate_user(self, user_id: int, access_token: str, exp_token: datetime, refresh_token: str):
         try:
-            user = select_user_by_id(db=self.db, user_id=user_id)
-            activate_user(
-                db=self.db, user=user, access_token=access_token, refresh_token=refresh_token, exp_token=exp_token
+            user_repository = UserRepository(db=self.db)
+            user = user_repository.select_user_by_id(user_id=user_id)
+            user_repository.activate_user(
+                user=user,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                exp_token=exp_token
             )
+
         except Exception as e:
             logger.error(f"Failed to activate user: {e}")
             raise
@@ -85,8 +90,10 @@ class CeleryTasks:
     def send_reset_pass_code(self, user_id: int, email: str):
         try:
             code = generate_reset_code()
-            create_reset_code(db=self.db, code=code, user_id=user_id)
+            user_repository = UserRepository(db=self.db)
+            user_repository.create_reset_code(code=code, user_id=user_id)
             send_mail_with_code(to_email=email, mail_title="Your reset password code", mail_body=code)
+
         except Exception as e:
             logger.error(f"Failed to send reset password code: {e}")
             raise
@@ -232,6 +239,17 @@ class CeleryTasks:
             diff = 200 - (exam.score + tests_scores)
             new_exam_score = exam.score - abs(diff)
             exam_rep.update_exam_config(exam_id=exam.id, data=ExamConfigUpdate(score=new_exam_score))
+
+    @celery_app.task(bind=True, base=DatabaseTask)
+    def update_user_token_after_login(self, user_id: int, access_token: str, refresh_token: str, exp_token: datetime):
+        user_repository = UserRepository(db=self.db)
+        user = user_repository.select_user_by_id(user_id=user_id)
+        user_repository.update_user_token(
+            user=user,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            exp_token=exp_token
+        )
 
 
 celery_tasks = CeleryTasks()

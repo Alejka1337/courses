@@ -61,3 +61,20 @@ class AuthResponse(BaseModel):
     refresh_token: str
     refresh_token_expire: datetime
     message: str
+
+
+class StudentCreateViaGoogle(BaseModel):
+    user_id: int
+    name: str
+    surname: str
+    email: str
+    image_path: str
+
+
+class StudentCreate(BaseModel):
+    user_id: int
+    email: str
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    phone: Optional[str] = None
+    country: Optional[str] = None

@@ -1,10 +1,11 @@
-from typing import cast, List
+from typing import List, cast
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from src.models import CourseIconOrm, CourseOrm, StudentCourseAssociation, LessonOrm
-from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
 from src.crud.lesson import get_lesson_info
+from src.models import CourseIconOrm, CourseOrm, LessonOrm, StudentCourseAssociation
+from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
 
 
 class CourseRepository:

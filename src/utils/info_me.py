@@ -1,9 +1,9 @@
-from typing import List
+from typing import Set
 
 from src.models import ImageOrm, StudentCourseAssociation, StudentOrm, UserOrm
 
 
-def set_info_me(user: UserOrm, student: StudentOrm, image: ImageOrm, courses: List[StudentCourseAssociation]):
+def set_info_me(user: UserOrm, student: StudentOrm, image: ImageOrm, courses: Set[StudentCourseAssociation]):
     result = {
         "user_id": user.id,
         "user_type": user.usertype,

@@ -1,4 +1,5 @@
 import uvicorn
+from debug_toolbar.middleware import DebugToolbarMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +18,7 @@ from src.api_routers.test import router as test_router
 from src.api_routers.user import router as user_router
 from src.config import API_PREFIX
 
-app = FastAPI()
+app = FastAPI(debug=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(user_router, prefix=API_PREFIX, tags=["User"])
 app.include_router(notification_router, prefix=API_PREFIX, tags=["Notification"])
@@ -38,6 +39,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+)
+
+app.add_middleware(
+    DebugToolbarMiddleware,
+    panels=["debug_toolbar.panels.sqlalchemy.SQLAlchemyPanel"],
 )
 
 

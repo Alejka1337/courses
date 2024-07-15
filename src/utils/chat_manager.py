@@ -1,7 +1,7 @@
 from fastapi.websockets import WebSocket
 from sqlalchemy.orm import Session
 
-from src.crud.user import select_moder_fullname_db, select_student_fullname_db, select_student_image_db
+from src.crud.user import UserRepository
 from src.enums import MessageSenderType
 from src.models import ChatMessageOrm
 
@@ -76,18 +76,19 @@ class ChatManager:
 
 def serialize_messages(db: Session, messages: list[ChatMessageOrm]):
     result = []
+    user_repository = UserRepository(db=db)
 
     for message in messages:
         message_data = get_message_data(message)
 
-        user_avatar = select_student_image_db(db=db, user_id=message.sender_id)
+        user_avatar = user_repository.select_student_image_db(user_id=message.sender_id)
         message_data["user_image"] = user_avatar.path if user_avatar else None
 
         if message.sender_type == MessageSenderType.student.value:
-            fullname = select_student_fullname_db(db=db, user_id=message.sender_id)
+            fullname = user_repository.select_student_fullname_db(user_id=message.sender_id)
             message_data["fullname"] = fullname
         else:
-            fullname = select_moder_fullname_db(db=db, user_id=message.sender_id)
+            fullname = user_repository.select_moder_fullname_db(user_id=message.sender_id)
             message_data["fullname"] = fullname
 
         result.append(message_data)
@@ -97,15 +98,16 @@ def serialize_messages(db: Session, messages: list[ChatMessageOrm]):
 
 def serialize_new_message(db: Session, message: ChatMessageOrm):
     message_data = get_message_data(message)
+    user_repository = UserRepository(db=db)
 
-    user_avatar = select_student_image_db(db=db, user_id=message.sender_id)
+    user_avatar = user_repository.select_student_image_db(user_id=message.sender_id)
     message_data["user_image"] = user_avatar.path if user_avatar else None
 
     if message.sender_type == MessageSenderType.student.value:
-        fullname = select_student_fullname_db(db=db, user_id=message.sender_id)
+        fullname = user_repository.select_student_fullname_db(user_id=message.sender_id)
         message_data["fullname"] = fullname
     else:
-        fullname = select_moder_fullname_db(db=db, user_id=message.sender_id)
+        fullname = user_repository.select_moder_fullname_db(user_id=message.sender_id)
         message_data["fullname"] = fullname
 
     return {"data": message_data, "type": "new-message"}

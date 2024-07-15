@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from src.enums import LectureAttributeType
 from src.models import LectureAttributeOrm, LectureFilesOrm, LectureLinksOrm, LectureOrm, LessonOrm
@@ -179,13 +179,22 @@ class LectureRepository:
         )
 
     def select_lecture_data(self, lesson: LessonOrm):
-        lecture = self.db.query(self.model).filter(self.model.lesson_id == lesson.id).first()
+        lecture = (
+            self.db.query(self.model)
+            .filter(self.model.lesson_id == lesson.id)
+            .options(joinedload(self.model.lecture_attributes).joinedload(self.attr_model.files))
+            .options(joinedload(self.model.lecture_attributes).joinedload(self.attr_model.links))
+            .first()
+        )
 
         if lecture:
-            lecture_attributes = (self.db.query(self.attr_model).filter(self.attr_model.lecture_id == lecture.id).all())
-            lecture_data = {"lecture_id": lecture.id, "lecture_speeches": lecture.audios, "attributes": []}
+            lecture_data = {
+                "lecture_id": lecture.id,
+                "lecture_speeches": lecture.audios,
+                "attributes": []
+            }
 
-            for attr in lecture_attributes:
+            for attr in lecture.lecture_attributes:
                 files = []
                 links = []
 

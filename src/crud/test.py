@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from src.enums import LessonStatus, QuestionTypeOption, LessonType
+from src.enums import LessonStatus, LessonType, QuestionTypeOption
 from src.models import (LessonOrm, StudentLessonOrm, TestAnswerOrm, TestMatchingLeftOrm, TestMatchingRightOrm, TestOrm,
                         TestQuestionOrm)
 from src.schemas.test import TestAnswerUpdate, TestConfigUpdate, TestMatchingUpdate, TestQuestionUpdate

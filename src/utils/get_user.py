@@ -5,7 +5,7 @@ from jose.jwt import decode
 from sqlalchemy.orm import Session
 
 from src.config import ALGORITHM, SECRET_KEY
-from src.crud.user import select_user_by_username
+from src.crud.user import UserRepository
 from src.session import get_db
 from src.utils.exceptions import AccessTokenExpireException, InvalidAuthenticationTokenException, UserNotFoundException
 from src.utils.token import check_expire_token
@@ -22,7 +22,8 @@ def get_current_user(db: Session = Depends(get_db), access_token: str = Depends(
         if username is None:
             raise InvalidAuthenticationTokenException()
 
-        user = select_user_by_username(db=db, username=username)
+        user_repository = UserRepository(db=db)
+        user = user_repository.select_user_by_username(username=username)
 
         if user is None:
             raise UserNotFoundException()

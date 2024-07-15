@@ -1,32 +1,19 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_number_and_course_id_db
 from src.crud.student_lesson import confirm_student_lecture_db, select_student_lesson_db, set_active_student_lesson_db
-from src.enums import StaticFileType, UserType
+from src.enums import UserType
 from src.models import UserOrm
 from src.schemas.lecture import (LectureAttributeBase, LectureAttributeBaseUpdate, LectureAttributeCreate,
                                  LectureAttributeUpdate, LectureFileAttributeUpdate, LectureFileBase)
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.save_files import save_file
 
 router = APIRouter(prefix="/lecture")
-
-
-# @router.post("/upload/file")
-# async def upload_lecture_file(
-#         file: UploadFile = File(...),
-#         user: UserOrm = Depends(get_current_user)
-# ):
-#     if user.usertype == UserType.moder.value:
-#         file_path = save_file(file=file, file_type=StaticFileType.lesson_image.value)
-#         return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
-#     else:
-#         raise PermissionDeniedException()
 
 
 @router.post("/create/text")

@@ -1,4 +1,5 @@
 from typing import List
+
 from sqlalchemy import asc, func
 from sqlalchemy.orm import Session
 
@@ -42,7 +43,8 @@ def create_exam_db(db: Session, lesson_id: int, course_id: int):
 
     if count_test > 0:
         test_lesson_ids = (db.query(LessonOrm.id.label("id")).
-                           filter(LessonOrm.course_id == course_id, LessonOrm.type == LessonType.test.value)
+                           filter(LessonOrm.course_id == course_id,
+                                  LessonOrm.type == LessonType.test.value)
                            .all())
 
         lesson_ids = [test_lesson.id for test_lesson in test_lesson_ids]
@@ -143,12 +145,31 @@ def search_lesson(db: Session, query: str):
 
 def get_lesson_info(db: Session, lessons: List[LessonOrm]):
     for lesson in lessons:
-        if lesson.type == LessonType.test.value:
-            test_id = db.query(TestOrm.id).filter(TestOrm.lesson_id == lesson.id).scalar()
-            count_questions = db.query(TestQuestionOrm).filter(TestQuestionOrm.test_id == test_id).count()
+        if lesson.type == LessonType.exam.value:
+            count_questions = (
+                db.query(ExamQuestionOrm.id)
+                .select_from(ExamOrm)
+                .join(ExamQuestionOrm, ExamOrm.id == ExamQuestionOrm.exam_id)
+                .filter(ExamOrm.lesson_id == lesson.id)
+                .count()
+            )
+
             setattr(lesson, "count_questions", count_questions)
 
-        elif lesson.type == LessonType.exam.value:
-            exam_id = db.query(ExamOrm.id).filter(ExamOrm.lesson_id == lesson.id).scalar()
-            count_questions = db.query(ExamQuestionOrm).filter(ExamQuestionOrm.exam_id == exam_id).count()
-            setattr(lesson, "count_questions", count_questions)
+    test_ids = [lesson.id for lesson in lessons if lesson.type == LessonType.test.value]
+
+    if test_ids:
+        test_question_counts = (
+            db.query(
+                TestOrm.lesson_id,
+                func.coalesce(func.count(TestQuestionOrm.id), 0).label("count_questions"))
+            .outerjoin(TestQuestionOrm, TestOrm.id == TestQuestionOrm.test_id)
+            .filter(TestOrm.lesson_id.in_(test_ids))
+            .group_by(TestOrm.lesson_id)
+            .all()
+        )
+
+        test_question_counts_dict = {lesson_id: count for lesson_id, count in test_question_counts}
+        for lesson in lessons:
+            if lesson in test_question_counts_dict.keys():
+                setattr(lesson, "count_questions", test_question_counts_dict[lesson.id])

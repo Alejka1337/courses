@@ -1,9 +1,9 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased
 
-from src.models import StudentCourseAssociation, CourseOrm
 from src.crud.student_lesson import select_student_lesson_db
 from src.enums import CourseStatus
+from src.models import CourseOrm, StudentCourseAssociation
 
 
 def select_student_course_info(db: Session, student_id: int, course: CourseOrm):
