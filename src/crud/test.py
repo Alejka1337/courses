@@ -26,7 +26,8 @@ class TestRepository:
             hidden: bool,
             test_id: int,
             image_path: str = None
-    ):
+    ) -> TestQuestionOrm:
+
         question = self.question_model(
             q_text=q_text,
             q_type=q_type,
@@ -39,7 +40,7 @@ class TestRepository:
         self.db.add(question)
         self.db.commit()
         self.db.refresh(question)
-        return question.id
+        return question
 
     def create_test_answer(
             self,
@@ -47,7 +48,8 @@ class TestRepository:
             a_text: str,
             is_correct: bool,
             image_path: str = None
-    ):
+    ) -> TestAnswerOrm:
+
         answer = self.answer_model(
             a_text=a_text,
             is_correct=is_correct,
@@ -57,13 +59,15 @@ class TestRepository:
         self.db.add(answer)
         self.db.commit()
         self.db.refresh(answer)
+        return answer
 
     def create_test_matching(
             self,
             left_text: str,
             right_text: str,
             question_id: int
-    ):
+    ) -> tuple[TestMatchingLeftOrm, TestMatchingRightOrm]:
+
         right_option = self.matching_right_model(text=right_text, question_id=question_id)
         self.db.add(right_option)
         self.db.commit()
@@ -74,6 +78,7 @@ class TestRepository:
 
         self.db.refresh(right_option)
         self.db.refresh(left_option)
+        return left_option, right_option
 
     def select_test_question(self, question_id: int):
         return self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
@@ -87,7 +92,7 @@ class TestRepository:
                 .filter(self.answer_model.is_correct)
                 .scalar())
 
-    def select_correct_answers(self, question_id: int):
+    def select_correct_answers(self, question_id: int) -> list[int]:
         answers_ids = (self.db.query(self.answer_model.id.label("id"))
                        .filter(self.answer_model.question_id == question_id)
                        .filter(self.answer_model.is_correct)
@@ -96,22 +101,22 @@ class TestRepository:
         answers = [answer.id for answer in answers_ids]
         return answers
 
-    def select_total_correct_answers(self, question_id: int):
+    def select_total_correct_answers(self, question_id: int) -> int:
         total = (self.db.query(self.answer_model.id.label("id"))
                  .filter(self.answer_model.question_id == question_id)
                  .filter(self.answer_model.is_correct)
                  .count())
         return total
 
-    def select_correct_right(self, left_id: int):
+    def select_correct_right(self, left_id: int) -> int:
         return (self.db.query(self.matching_left_model.right_id)
                 .filter(self.matching_left_model.id == left_id)
                 .scalar())
 
-    def select_test_id_by_lesson_id(self, lesson_id: int):
+    def select_test_id_by_lesson_id(self, lesson_id: int) -> int:
         return self.db.query(self.model.id).filter(self.model.lesson_id == lesson_id).scalar()
 
-    def select_tests_scores(self, course_id: int):
+    def select_tests_scores(self, course_id: int) -> int:
         lesson_ids = (self.db.query(self.lesson_model.id.label("id"))
                       .filter(self.lesson_model.course_id == course_id,
                               self.lesson_model.type == LessonType.test.value)
@@ -124,25 +129,25 @@ class TestRepository:
 
         return tests_scores
 
-    def update_test_config(self, test_id: int, data: TestConfigUpdate):
+    def update_test_config(self, test_id: int, data: TestConfigUpdate) -> None:
         test = self.db.query(self.model).filter(self.model.id == test_id).first()
 
         for field, value in data.dict(exclude_unset=True).items():
             setattr(test, field, value)
 
         self.db.commit()
-        self.db.refresh(test)
+        # self.db.refresh(test)
 
-    def update_question(self, question_id: int, data: TestQuestionUpdate):
+    def update_question(self, question_id: int, data: TestQuestionUpdate) -> None:
         question = self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
 
         for field, value in data.dict(exclude_unset=True).items():
             setattr(question, field, value)
 
         self.db.commit()
-        self.db.refresh(question)
+        # self.db.refresh(question)
 
-    def delete_question(self, question_id: int):
+    def delete_question(self, question_id: int) -> None:
         question = self.select_test_question(question_id=question_id)
 
         if question.q_type == QuestionTypeOption.matching:
@@ -171,21 +176,21 @@ class TestRepository:
             self.db.delete(question)
             self.db.commit()
 
-    def update_answer(self, answer_id: int, data: TestAnswerUpdate):
+    def update_answer(self, answer_id: int, data: TestAnswerUpdate) -> None:
         answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
 
         for field, value in data.dict(exclude_unset=True).items():
             setattr(answer, field, value)
 
         self.db.commit()
-        self.db.refresh(answer)
+        # self.db.refresh(answer)
 
     def delete_answer(self, answer_id: int):
         answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
         self.db.delete(answer)
         self.db.commit()
 
-    def update_matching(self, left_id: int, data: TestMatchingUpdate):
+    def update_matching(self, left_id: int, data: TestMatchingUpdate) -> None:
         left = self.db.query(self.matching_left_model).filter(self.matching_left_model.id == left_id).first()
 
         if data.left_text:
@@ -198,7 +203,7 @@ class TestRepository:
             right.text = data.right_text
 
         self.db.commit()
-        self.db.refresh(left)
+        # self.db.refresh(left)
 
     def select_test_data(self, lesson: LessonOrm, student_id: int = None):
         test = self.db.query(TestOrm).filter(TestOrm.lesson_id == lesson.id).first()

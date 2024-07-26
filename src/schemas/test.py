@@ -1,6 +1,7 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict
+from typing_extensions import Self
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveInt
 
 from src.enums import QuestionTypeOption
 
@@ -11,6 +12,32 @@ class TestAnswerBase(BaseModel):
     image_path: Optional[str] = None
 
 
+class TestAnswerResponse(TestAnswerBase):
+    a_id: PositiveInt
+
+    @classmethod
+    def from_orm(cls, obj: Any) -> Self:
+        return cls(
+            a_id=obj.id,
+            a_text=obj.a_text,
+            is_correct=obj.is_correct,
+            image_path=obj.image_path
+        )
+
+
+class MatchingItem(BaseModel):
+    id: PositiveInt
+    value: str
+
+
+class MatchingLeft(BaseModel):
+    left: List[MatchingItem]
+
+
+class MatchingRight(BaseModel):
+    right: List[MatchingItem]
+
+
 class TestMatchingBase(BaseModel):
     right_text: str
     left_text: str
@@ -18,8 +45,8 @@ class TestMatchingBase(BaseModel):
 
 class TestQuestionBase(BaseModel):
     q_text: str
-    q_number: int
-    q_score: int
+    q_number: PositiveInt
+    q_score: PositiveInt
     q_type: QuestionTypeOption
     hidden: Optional[bool] = False
     image_path: Optional[str] = None
@@ -31,19 +58,19 @@ class ExamQuestionBase(TestQuestionBase):
 
 
 class TestConfigUpdate(BaseModel):
-    score: Optional[int] = None
-    attempts: Optional[int] = None
+    score: Optional[PositiveInt] = None
+    attempts: Optional[PositiveInt] = None
 
 
 class ExamConfigUpdate(TestConfigUpdate):
     timer: Optional[int] = None
-    min_score: Optional[int] = None
+    min_score: Optional[PositiveInt] = None
 
 
 class TestQuestionUpdate(BaseModel):
     q_text: Optional[str] = None
-    q_number: Optional[int] = None
-    q_score: Optional[int] = None
+    q_number: Optional[PositiveInt] = None
+    q_score: Optional[PositiveInt] = None
     hidden: Optional[bool] = False
     image_path: Optional[str] = None
 
@@ -72,7 +99,7 @@ class ExamMatchingUpdate(TestMatchingUpdate):
 
 
 class TestAnswerAdd(TestAnswerBase):
-    question_id: int
+    question_id: PositiveInt
 
 
 class ExamAnswerAdd(TestAnswerAdd):
@@ -80,8 +107,23 @@ class ExamAnswerAdd(TestAnswerAdd):
 
 
 class TestMatchingAdd(TestMatchingBase):
-    question_id: int
+    question_id: PositiveInt
 
 
 class ExamMatchingAdd(TestMatchingAdd):
     pass
+
+
+class TestQuestionResponse(BaseModel):
+    q_id: PositiveInt
+    q_text: str
+    q_number: PositiveInt
+    q_score: PositiveInt
+    q_type: QuestionTypeOption
+    hidden: Optional[bool] = False
+    image_path: Optional[str] = None
+    answers: List[Union[TestAnswerResponse, Union[MatchingLeft, MatchingRight]]]
+
+
+class QuestionListResponse(BaseModel):
+    questions: List[TestQuestionResponse]

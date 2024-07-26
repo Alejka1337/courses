@@ -7,10 +7,11 @@ from src.crud.test import TestRepository
 from src.enums import QuestionTypeOption, UserType
 from src.models import UserOrm
 from src.schemas.test import (TestAnswerAdd, TestAnswerUpdate, TestConfigUpdate, TestMatchingAdd, TestMatchingUpdate,
-                              TestQuestionBase, TestQuestionUpdate)
+                              TestQuestionBase, TestQuestionUpdate, QuestionListResponse)
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
+from src.utils.create_test import create_test_logic
 
 router = APIRouter(prefix="/test")
 
@@ -31,7 +32,7 @@ async def update_test(
         raise PermissionDeniedException()
 
 
-@router.post("/question/add")
+@router.post("/question/add", response_model=QuestionListResponse)
 async def create_test(
         test_id: int,
         data: List[TestQuestionBase],
@@ -40,84 +41,7 @@ async def create_test(
 ):
     if user.usertype == UserType.moder.value:
         repository = TestRepository(db=db)
-        for question_data in data:
-            if question_data.q_type in [
-                QuestionTypeOption.boolean.value,
-                QuestionTypeOption.test.value,
-                QuestionTypeOption.multiple_choice.value
-            ]:
-
-                question_id = repository.create_test_question(
-                    q_text=question_data.q_text,
-                    q_number=question_data.q_number,
-                    q_type=question_data.q_type,
-                    q_score=question_data.q_score,
-                    hidden=question_data.hidden,
-                    test_id=test_id
-                )
-
-                for answer_data in question_data.answers:
-                    repository.create_test_answer(
-                        question_id=question_id,
-                        a_text=answer_data.a_text,
-                        is_correct=answer_data.is_correct
-                    )
-
-            elif question_data.q_type == QuestionTypeOption.answer_with_photo.value:
-                question_id = repository.create_test_question(
-                    q_text=question_data.q_text,
-                    q_number=question_data.q_number,
-                    q_type=question_data.q_type,
-                    q_score=question_data.q_score,
-                    hidden=question_data.hidden,
-                    test_id=test_id
-                )
-
-                for answer_data in question_data.answers:
-                    repository.create_test_answer(
-                        question_id=question_id,
-                        a_text=answer_data.a_text,
-                        is_correct=answer_data.is_correct,
-                        image_path=answer_data.image_path
-                    )
-
-            elif question_data.q_type == QuestionTypeOption.question_with_photo.value:
-                question_id = repository.create_test_question(
-                    q_text=question_data.q_text,
-                    q_number=question_data.q_number,
-                    q_type=question_data.q_type,
-                    q_score=question_data.q_score,
-                    hidden=question_data.hidden,
-                    test_id=test_id,
-                    image_path=question_data.image_path
-                )
-
-                for answer_data in question_data.answers:
-                    repository.create_test_answer(
-                        question_id=question_id,
-                        a_text=answer_data.a_text,
-                        is_correct=answer_data.is_correct
-                    )
-
-            else:
-                question_id = repository.create_test_question(
-                    q_text=question_data.q_text,
-                    q_number=question_data.q_number,
-                    q_type=question_data.q_type,
-                    q_score=question_data.q_score,
-                    hidden=question_data.hidden,
-                    test_id=test_id
-                )
-
-                for answer_data in question_data.answers:
-                    repository.create_test_matching(
-                        left_text=answer_data.left_text,
-                        right_text=answer_data.right_text,
-                        question_id=question_id
-                    )
-
-        return {"message": "Test data have been saved"}
-
+        return create_test_logic(repository=repository, data=data, test_id=test_id)
     else:
         raise PermissionDeniedException()
 
