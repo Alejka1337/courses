@@ -1,7 +1,7 @@
-from typing import List, Optional, Any
-from typing_extensions import Self
+from typing import Any, List, Optional
 
-from pydantic import BaseModel, PositiveInt, FilePath
+from pydantic import BaseModel, FilePath, PositiveInt
+from typing_extensions import Self
 
 from src.enums import LectureAttributeType
 

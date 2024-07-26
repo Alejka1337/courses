@@ -4,7 +4,6 @@ import wave
 
 from pyttsx3.engine import Engine
 
-
 from src.config import FEMALE_VOICE, MALE_VOICES, SPEECHES_DIR
 
 
@@ -71,5 +70,3 @@ def create_lecture_text(attrs):
 
         lecture_text += f"{title}\n{text}\n"
     return lecture_text
-
-

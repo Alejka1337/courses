@@ -1,12 +1,10 @@
-from typing import Union
-
-from fastapi import APIRouter, Depends, File, Response, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from src.crud.category import CategoryRepository
 from src.enums import StaticFileType, UserType
-from src.models import CategoryOrm, UserOrm
-from src.schemas.category import CategoryCreate, CategoryOut, CategoryUpdate
+from src.models import UserOrm
+from src.schemas.category import CategoryCreate, CategoryUpdate
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
@@ -15,13 +13,12 @@ from src.utils.save_files import save_file
 router = APIRouter(prefix="/category")
 
 
-@router.post("/create", response_model=CategoryOut)
+@router.post("/create")
 async def create_category(
         data: CategoryCreate,
         user: UserOrm = Depends(get_current_user),
         db: Session = Depends(get_db)
-) -> Union[CategoryOrm, Response]:
-
+):
     if user.usertype == UserType.moder.value:
         repository = CategoryRepository(db=db)
         return repository.create_category(data=data)

@@ -1,9 +1,9 @@
 from typing import List
 
 from src.crud.test import TestRepository
-from src.schemas.test import (TestQuestionBase, QuestionListResponse, TestQuestionResponse, TestAnswerResponse,
-                              MatchingLeft, MatchingRight, MatchingItem)
 from src.enums import QuestionTypeOption
+from src.schemas.test import (MatchingItem, MatchingLeft, MatchingRight, QuestionListResponse, TestAnswerResponse,
+                              TestQuestionBase, TestQuestionResponse)
 
 
 def create_test_logic(repository: TestRepository,  data: List[TestQuestionBase], test_id: int) -> QuestionListResponse:

@@ -1,7 +1,7 @@
-from typing import List, Optional, Union, Any
-from typing_extensions import Self
+from typing import Any, List, Optional, Union
 
 from pydantic import BaseModel, PositiveInt
+from typing_extensions import Self
 
 from src.enums import QuestionTypeOption
 

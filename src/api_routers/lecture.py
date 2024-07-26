@@ -7,9 +7,9 @@ from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_number_and_
 from src.crud.student_lesson import confirm_student_lecture_db, select_student_lesson_db, set_active_student_lesson_db
 from src.enums import UserType
 from src.models import UserOrm
-from src.schemas.lecture import (LectureAttributeBase, LectureAttributeBaseUpdate, LectureAttributeCreate,
-                                 LectureAttributeUpdate, LectureFileAttributeUpdate, LectureFileBase,
-                                 LectureAttributeResponse, FileResponse, LinkResponse)
+from src.schemas.lecture import (FileResponse, LectureAttributeBase, LectureAttributeBaseUpdate, LectureAttributeCreate,
+                                 LectureAttributeResponse, LectureAttributeUpdate, LectureFileAttributeUpdate,
+                                 LectureFileBase, LinkResponse)
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user

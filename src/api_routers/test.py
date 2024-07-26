@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.crud.test import TestRepository
-from src.enums import QuestionTypeOption, UserType
+from src.enums import UserType
 from src.models import UserOrm
-from src.schemas.test import (TestAnswerAdd, TestAnswerUpdate, TestConfigUpdate, TestMatchingAdd, TestMatchingUpdate,
-                              TestQuestionBase, TestQuestionUpdate, QuestionListResponse)
+from src.schemas.test import (QuestionListResponse, TestAnswerAdd, TestAnswerUpdate, TestConfigUpdate, TestMatchingAdd,
+                              TestMatchingUpdate, TestQuestionBase, TestQuestionUpdate)
 from src.session import get_db
+from src.utils.create_test import create_test_logic
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.create_test import create_test_logic
 
 router = APIRouter(prefix="/test")
 

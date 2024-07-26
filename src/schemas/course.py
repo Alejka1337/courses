@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, PositiveInt, PositiveFloat
+from pydantic import BaseModel, PositiveFloat, PositiveInt
 
 
 class CourseIconCreate(BaseModel):
