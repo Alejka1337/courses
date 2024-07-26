@@ -2,13 +2,14 @@ import os
 import subprocess
 import wave
 
-import pyttsx3
+from pyttsx3.engine import Engine
+
 
 from src.config import FEMALE_VOICE, MALE_VOICES, SPEECHES_DIR
 
 
 def text_to_speach(text: str, lecture_id: int):
-    engine = pyttsx3.init()
+    engine = Engine(driverName="nsss")
     engine.setProperty('rate', 150)
     voices = engine.getProperty('voices')
 
@@ -70,3 +71,5 @@ def create_lecture_text(attrs):
 
         lecture_text += f"{title}\n{text}\n"
     return lecture_text
+
+

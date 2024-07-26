@@ -175,11 +175,12 @@ class CeleryTasks:
 
         folder = "static/speeches" + "/lecture" + str(lecture_id)
         os.makedirs(folder, exist_ok=True)
-        delete_files_in_directory(folder)
+        delete_files_in_directory(folder, "all")
 
         result = text_to_speach(text=lecture_text, lecture_id=lecture_id)
         audio_list = [value for value in result.values()]
         repository.update_lecture_audio(lecture_id=lecture_id, audios=audio_list)
+        delete_files_in_directory(folder, "mp3")
 
     @celery_app.task(bind=True, base=DatabaseTask)
     def create_update_course_notification(self, new_lesson_id: int, course_id: int):
