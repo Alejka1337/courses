@@ -1,4 +1,5 @@
 import os
+from typing import Literal
 from datetime import datetime
 
 from fastapi import UploadFile
@@ -6,6 +7,8 @@ from fastapi import UploadFile
 from src.config import (CATEGORY_AVATAR_PATH, CHAT_FILES_PATH, COURSE_ICON_PATH, COURSE_IMAGE_PATH,
                         INSTRUCTION_FILES_PATH, LESSON_IMAGE_PATH, STUDENT_AVATAR_PATH)
 from src.enums import StaticFileType
+
+MODE = Literal["mp3", "all"]
 
 
 def save_file(file: UploadFile, file_type: StaticFileType):
@@ -39,15 +42,16 @@ def save_file(file: UploadFile, file_type: StaticFileType):
     return file_path
 
 
-def delete_files_in_directory(directory):
+def delete_files_in_directory(directory: str, mode: MODE):
     file_list = os.listdir(directory)
     for file_name in file_list:
-        file_path = os.path.join(directory, file_name)
-        try:
-            os.remove(file_path)
-            print(f"File {file_path} successfully removed")
-        except Exception as e:
-            print(f"Remove file {file_path} error: {e}")
+        if mode == "all" or (mode == "mp3" and file_name.endswith(".mp3")):
+            file_path = os.path.join(directory, file_name)
+            try:
+                os.remove(file_path)
+                print(f"File {file_path} successfully removed")
+            except Exception as e:
+                print(f"Remove file {file_path} error: {e}")
 
 
 def delete_file(file_path: str):
