@@ -23,7 +23,7 @@ class LectureRepository:
             a_number: int,
             hidden: bool,
             a_text: str | None
-    ) -> int:
+    ) -> LectureAttributeOrm:
 
         new_attr = self.attr_model(
             a_type=a_type,
@@ -36,7 +36,7 @@ class LectureRepository:
         self.db.add(new_attr)
         self.db.commit()
         self.db.refresh(new_attr)
-        return new_attr.id
+        return new_attr
 
     def create_attribute_file(
             self,
@@ -46,7 +46,7 @@ class LectureRepository:
             file_size: int,
             file_description: str | None,
             download_allowed: bool
-    ) -> None:
+    ) -> LectureFilesOrm:
 
         file = self.file_model(
             filename=filename,
@@ -59,18 +59,20 @@ class LectureRepository:
         self.db.add(file)
         self.db.commit()
         self.db.refresh(file)
+        return file
 
     def create_attribute_link(
             self,
             attribute_id: int,
             link: str,
             anchor: str | None
-    ) -> None:
+    ) -> LectureLinksOrm:
 
         link = self.link_model(attribute_id=attribute_id, link=link, anchor=anchor)
         self.db.add(link)
         self.db.commit()
         self.db.refresh(link)
+        return link
 
     def select_lecture_attrs(self, lecture_id: int) -> list:
         return (self.db.query(self.attr_model.a_title.label("title"), self.attr_model.a_text.label("text"))
@@ -119,7 +121,7 @@ class LectureRepository:
         self.create_attribute_file(
             attribute_id=attr_id,
             filename=data.filename,
-            file_path=data.file_path,
+            file_path=str(data.file_path),
             file_size=data.file_size,
             file_description=data.file_description,
             download_allowed=data.download_allowed
@@ -144,7 +146,7 @@ class LectureRepository:
                 attribute_id=attr_id,
                 filename=new_file.filename,
                 file_size=new_file.file_size,
-                file_path=new_file.file_path,
+                file_path=str(new_file.file_path),
                 file_description=new_file.file_description,
                 download_allowed=new_file.download_allowed
             )
@@ -177,6 +179,25 @@ class LectureRepository:
             a_number=data.a_number,
             hidden=data.hidden
         )
+
+    def delete_lecture_attr(self, attr_id: int):
+        attr = self.db.query(self.attr_model).filter(self.attr_model.id == attr_id).first()
+
+        if attr.a_type == LectureAttributeType.link.value:
+            links = self.db.query(self.link_model).filter(self.link_model.attribute_id == attr.id).all()
+
+            for link in links:
+                self.db.delete(link)
+
+        else:
+            files = self.db.query(self.file_model).filter(self.file_model.attribute_id == attr.id).all()
+
+            for file in files:
+                delete_file(file.file_path)
+                self.db.delete(file)
+
+        self.db.delete(attr)
+        self.db.commit()
 
     def select_lecture_data(self, lesson: LessonOrm):
         lecture = (
