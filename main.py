@@ -1,5 +1,5 @@
 import uvicorn
-from debug_toolbar.middleware import DebugToolbarMiddleware
+# from debug_toolbar.middleware import DebugToolbarMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -41,10 +41,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(
-    DebugToolbarMiddleware,
-    panels=["debug_toolbar.panels.sqlalchemy.SQLAlchemyPanel"],
-)
+# app.add_middleware(
+#     DebugToolbarMiddleware,
+#     panels=["debug_toolbar.panels.sqlalchemy.SQLAlchemyPanel"],
+# )
 
 
 @app.get("/")
