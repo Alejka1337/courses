@@ -1,26 +1,26 @@
 from typing import List, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveInt
 
 from src.enums import QuestionTypeOption
 
 
 class StudentAnswerBase(BaseModel):
-    q_id: int
+    q_id: PositiveInt
     q_type: QuestionTypeOption
 
 
 class StudentTestAnswer(StudentAnswerBase):
-    a_id: int
+    a_id: PositiveInt
 
 
 class StudentTestAnswers(StudentAnswerBase):
-    a_ids: List[int]
+    a_ids: List[PositiveInt]
 
 
 class StudentMatchingBase(BaseModel):
-    left_id: int
-    right_id: int
+    left_id: PositiveInt
+    right_id: PositiveInt
 
 
 class StudentTestMatching(StudentAnswerBase):
@@ -28,11 +28,11 @@ class StudentTestMatching(StudentAnswerBase):
 
 
 class StudentTest(BaseModel):
-    lesson_id: int
+    lesson_id: PositiveInt
     student_answers: List[Union[StudentTestAnswer, StudentTestAnswers, StudentTestMatching]]
 
 
 class SubmitStudentTest(BaseModel):
-    attempt_id: int
-    student_id: int
-    lesson_id: int
+    attempt_id: PositiveInt
+    student_id: PositiveInt
+    lesson_id: PositiveInt

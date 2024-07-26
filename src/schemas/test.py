@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Any, Dict
+from typing import List, Optional, Union, Any
 from typing_extensions import Self
 
 from pydantic import BaseModel, PositiveInt

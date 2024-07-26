@@ -1,19 +1,19 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveInt
 
 
 class CategoryCreate(BaseModel):
     title: str
     description: str
-    image_path: Optional[str]
+    image_path: Optional[str] = None
 
 
 class CategoryUpdate(BaseModel):
     title: Optional[str]
     description: Optional[str]
     image_path: Optional[str]
-    discount: Optional[int]
+    discount: Optional[PositiveInt]
 
 
 class CategoryOut(BaseModel):
@@ -21,4 +21,4 @@ class CategoryOut(BaseModel):
     title: str
     description: str
     image_path: str = None
-    discount: int
+    discount: PositiveInt

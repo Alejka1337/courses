@@ -70,7 +70,7 @@ class LectureAttributeCreate(LectureAttributeBase):
 class LectureFileUpdate(BaseModel):
     filename: Optional[str] = None
     file_path: Optional[FilePath] = None
-    file_size: Optional[int] = None
+    file_size: Optional[PositiveInt] = None
     file_description: Optional[str] = None
     download_allowed: Optional[bool] = None
 

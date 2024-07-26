@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveInt
 
 from src.enums import UserType
 
@@ -49,13 +49,13 @@ class LoginWithGoogle(BaseModel):
 
 
 class BuyCourse(BaseModel):
-    course_id: int
+    course_id: PositiveInt
 
 
 class AuthResponse(BaseModel):
     access_token: str
     access_token_expire: datetime
-    user_id: int
+    user_id: PositiveInt
     username: str
     user_type: UserType
     refresh_token: str
@@ -64,7 +64,7 @@ class AuthResponse(BaseModel):
 
 
 class StudentCreateViaGoogle(BaseModel):
-    user_id: int
+    user_id: PositiveInt
     name: str
     surname: str
     email: str
@@ -72,7 +72,7 @@ class StudentCreateViaGoogle(BaseModel):
 
 
 class StudentCreate(BaseModel):
-    user_id: int
+    user_id: PositiveInt
     email: str
     name: Optional[str] = None
     surname: Optional[str] = None

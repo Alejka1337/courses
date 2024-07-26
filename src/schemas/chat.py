@@ -1,13 +1,13 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveInt
 
 
 class MessageFile(BaseModel):
     file_type: str
     file_name: str
     file_path: str
-    file_size: int
+    file_size: PositiveInt
 
 
 class InitializationChat(BaseModel):

@@ -1,13 +1,13 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveInt
 
 from src.enums import LessonType
 
 
 class LessonCreate(BaseModel):
     type: LessonType
-    number: int
+    number: PositiveInt
     title: str
     description: str
-    scheduled_time: int
-    course_id: int
+    scheduled_time: PositiveInt
+    course_id: PositiveInt
     image_path: str
