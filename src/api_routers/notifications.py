@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
-from src.crud.lesson import select_lesson_by_type_and_title_db
+from src.crud.lesson import LessonRepository
 from src.crud.notifications import NotificationRepository
 from src.enums import UserType
 from src.models import UserOrm
@@ -55,9 +55,9 @@ async def agree_with_notification(
         )
 
         lesson_info = parse_notification_text(notification.message)
-
-        new_lesson = select_lesson_by_type_and_title_db(
-            db=db, lesson_title=lesson_info["lesson_title"], lesson_type=lesson_info["lesson_type"]
+        lesson_repo = LessonRepository(db=db)
+        new_lesson = lesson_repo.select_lesson_by_type_and_title_db(
+            lesson_title=lesson_info["lesson_title"], lesson_type=lesson_info["lesson_type"]
         )
 
         celery_tasks.update_student_lessons.delay(student_id=user.student.id, lesson_info=lesson_info)

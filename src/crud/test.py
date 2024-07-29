@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.enums import LessonStatus, LessonType, QuestionTypeOption
@@ -16,6 +17,13 @@ class TestRepository:
         self.answer_model = TestAnswerOrm
         self.matching_left_model = TestMatchingLeftOrm
         self.matching_right_model = TestMatchingRightOrm
+
+    def create_test(self, lesson_id: int):
+        new_test = self.model(lesson_id=lesson_id, score=40, attempts=10)
+        self.db.add(new_test)
+        self.db.commit()
+        self.db.refresh(new_test)
+        return new_test
 
     def create_test_question(
             self,
@@ -86,6 +94,25 @@ class TestRepository:
     def select_test_answers(self, question_id: int):
         return self.db.query(self.answer_model).filter(self.answer_model.question_id == question_id).all()
 
+    def select_test_sum_scores(self, course_id: int):
+        return (self.db.query(func.sum(self.model.score))
+                .join(self.lesson_model)
+                .filter(self.lesson_model.course_id == course_id,
+                        self.lesson_model.type == LessonType.test.value)
+                .scalar())
+
+    def select_tests_in_course(self, course_id: int):
+        return (self.db.query(self.model)
+                .join(self.lesson_model)
+                .filter(self.lesson_model.course_id == course_id,
+                        self.lesson_model.type == LessonType.test.value)
+                .all())
+
+    def select_sum_questions_score(self, test_id: int):
+        return (self.db.query(func.sum(self.question_model.q_score))
+                .filter(self.question_model.test_id == test_id)
+                .scalar())
+
     def select_correct_answer(self, question_id: int):
         return (self.db.query(self.answer_model.id)
                 .filter(self.answer_model.question_id == question_id)
@@ -129,6 +156,24 @@ class TestRepository:
 
         return tests_scores
 
+    def select_quantity_questions(self, test_ids: list[int]):
+        test_question_counts = (
+            self.db.query(
+                self.model.lesson_id,
+                func.coalesce(
+                    func.count(
+                        self.question_model.id
+                    ), 0
+                ).label("count_questions"))
+            .outerjoin(self.question_model, self.model.id == self.question_model.test_id)
+            .filter(self.model.lesson_id.in_(test_ids))
+            .group_by(self.model.lesson_id)
+            .all()
+        )
+
+        test_question_counts_dict = {lesson_id: count for lesson_id, count in test_question_counts}
+        return test_question_counts_dict
+
     def update_test_config(self, test_id: int, data: TestConfigUpdate) -> None:
         test = self.db.query(self.model).filter(self.model.id == test_id).first()
 
@@ -136,7 +181,6 @@ class TestRepository:
             setattr(test, field, value)
 
         self.db.commit()
-        # self.db.refresh(test)
 
     def update_question(self, question_id: int, data: TestQuestionUpdate) -> None:
         question = self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
@@ -145,7 +189,6 @@ class TestRepository:
             setattr(question, field, value)
 
         self.db.commit()
-        # self.db.refresh(question)
 
     def delete_question(self, question_id: int) -> None:
         question = self.select_test_question(question_id=question_id)
@@ -183,7 +226,6 @@ class TestRepository:
             setattr(answer, field, value)
 
         self.db.commit()
-        # self.db.refresh(answer)
 
     def delete_answer(self, answer_id: int):
         answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()
@@ -203,7 +245,6 @@ class TestRepository:
             right.text = data.right_text
 
         self.db.commit()
-        # self.db.refresh(left)
 
     def select_test_data(self, lesson: LessonOrm, student_id: int = None):
         test = self.db.query(TestOrm).filter(TestOrm.lesson_id == lesson.id).first()

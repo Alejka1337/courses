@@ -15,6 +15,13 @@ class LectureRepository:
         self.link_model = LectureLinksOrm
         self.lesson_model = LessonOrm
 
+    def create_lecture(self, lesson_id: int):
+        new_lecture = self.model(lesson_id=lesson_id)
+        self.db.add(new_lecture)
+        self.db.commit()
+        self.db.refresh(new_lecture)
+        return new_lecture
+
     def create_attribute_base(
             self,
             lecture_id: int,
@@ -115,7 +122,9 @@ class LectureRepository:
     def update_lecture_file_attr(self, attr_id: int, data: LectureFileAttributeUpdate):
         file = self.db.query(self.file_model).filter(self.file_model.attribute_id == attr_id).first()
 
-        delete_file(file.file_path)
+        if str(data.file_path) != file.file_path:
+            delete_file(file.file_path)
+
         self.db.delete(file)
 
         self.create_attribute_file(
@@ -137,8 +146,11 @@ class LectureRepository:
 
     def update_lecture_files_attr(self, attr_id: int, data: LectureAttributeUpdate):
         files = self.db.query(self.file_model).filter(self.file_model.attribute_id == attr_id).all()
+        paths = [f.file_path for f in data.files]
         for file in files:
-            delete_file(file.file_path)
+            if file.file_path in paths:
+                delete_file(file.file_path)
+
             self.db.delete(file)
 
         for new_file in data.files:

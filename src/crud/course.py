@@ -3,16 +3,25 @@ from typing import List, cast
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from src.crud.lesson import get_lesson_info
+from src.crud.lesson import LessonRepository
 from src.models import CourseIconOrm, CourseOrm, LessonOrm, StudentCourseAssociation
 from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
 
 
 class CourseRepository:
+    _lesson_repo = None
+
     def __init__(self, db: Session):
         self.db = db
         self.course_model = CourseOrm
         self.icon_model = CourseIconOrm
+        self.student_course_model = StudentCourseAssociation
+
+    @property
+    def lesson_repo(self):
+        if self._lesson_repo is None:
+            self._lesson_repo = LessonRepository(db=self.db)
+        return self._lesson_repo
 
     def create_course(self, data: CourseCreate) -> CourseOrm:
         new_course = CourseOrm(**data.dict())
@@ -39,7 +48,7 @@ class CourseRepository:
 
         if course and course.lessons:
             lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
-            get_lesson_info(db=self.db, lessons=lessons)
+            self.lesson_repo.get_lesson_info(lessons=lessons)
         return course
 
     def select_courses_by_category_id(self, category_id: int):
@@ -51,7 +60,7 @@ class CourseRepository:
         for course in courses:
             if course and course.lessons:
                 lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
-                get_lesson_info(db=self.db, lessons=lessons)
+                self.lesson_repo.get_lesson_info(lessons=lessons)
 
         return courses
 
@@ -65,7 +74,7 @@ class CourseRepository:
         for course in courses:
             if course and course.lessons:
                 lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
-                get_lesson_info(db=self.db, lessons=lessons)
+                self.lesson_repo.get_lesson_info(lessons=lessons)
 
         return courses
 
@@ -78,7 +87,7 @@ class CourseRepository:
         for course in courses:
             if course and course.lessons:
                 lessons: List[LessonOrm] = cast(List[LessonOrm], course.lessons)
-                get_lesson_info(db=self.db, lessons=lessons)
+                self.lesson_repo.get_lesson_info(lessons=lessons)
 
         return courses
 
@@ -90,6 +99,11 @@ class CourseRepository:
                 .filter(self.course_model.id == course_id)
                 .options(joinedload(self.course_model.category))
                 .first())
+
+    def published_course(self, course_id: int):
+        (self.db.query(self.course_model)
+         .filter(self.course_model.id == course_id)
+         .update({self.course_model.is_published: True}, synchronize_session=False))
 
     def update_course(self, data: CourseUpdate, course: CourseOrm):
         for key, value in data.dict().items():
@@ -140,12 +154,13 @@ class CourseRepository:
         return self.db.query(self.course_model).filter(self.course_model.title.op('~*')(regex_query)).all()
 
     def select_popular_course(self):
-        popular_course_ids = (self.db.query(StudentCourseAssociation.course_id,
-                                            func.count(StudentCourseAssociation.course_id).label('course_count'))
-                              .group_by(StudentCourseAssociation.course_id)
-                              .order_by(func.count(StudentCourseAssociation.course_id).desc())
-                              .limit(10)
-                              .all())
+        popular_course_ids = (self.db.query(
+            self.student_course_model.course_id,
+            func.count(self.student_course_model.course_id).label('course_count'))
+                .group_by(self.student_course_model.course_id)
+                .order_by(func.count(self.student_course_model.course_id).desc())
+                .limit(10)
+                .all())
 
         course_ids = [course_id for course_id, count in popular_course_ids]
         popular_courses = self.db.query(self.course_model).filter(self.course_model.id.in_(course_ids)).all()

@@ -1,175 +1,142 @@
 from typing import List
 
-from sqlalchemy import asc, func
+from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
 from src.crud.exam import ExamRepository
 from src.crud.lecture import LectureRepository
 from src.crud.test import TestRepository
 from src.enums import LessonType
-from src.models import CourseOrm, ExamOrm, ExamQuestionOrm, LectureOrm, LessonOrm, TestOrm, TestQuestionOrm
+from src.models import LessonOrm
 from src.schemas.lesson import LessonCreate
 
 
-def create_lesson_db(db: Session, data: LessonCreate) -> LessonOrm:
-    new_lesson = LessonOrm(**data.dict())
-    db.add(new_lesson)
-    db.commit()
-    db.refresh(new_lesson)
-    return new_lesson
+class LessonRepository:
+    _test_repo = None
+    _exam_repo = None
+    _lecture_repo = None
 
+    def __init__(self, db: Session):
+        self.db = db
+        self.lesson_model = LessonOrm
 
-def create_lecture_db(db: Session, lesson_id: int):
-    new_lecture = LectureOrm(lesson_id=lesson_id)
-    db.add(new_lecture)
-    db.commit()
-    db.refresh(new_lecture)
-    return new_lecture
+    @property
+    def test_repo(self):
+        if self._test_repo is None:
+            self._test_repo = TestRepository(db=self.db)
+        return self._test_repo
 
+    @property
+    def exam_repo(self):
+        if self._exam_repo is None:
+            self._exam_repo = ExamRepository(db=self.db)
+        return self._exam_repo
 
-def create_test_db(db: Session, lesson_id: int):
-    new_test = TestOrm(lesson_id=lesson_id, score=40, attempts=10)
-    db.add(new_test)
-    db.commit()
-    db.refresh(new_test)
-    return new_test
+    @property
+    def lecture_repo(self):
+        if self._lecture_repo is None:
+            self._lecture_repo = LectureRepository(db=self.db)
+        return self._lecture_repo
 
+    def create_lesson_db(self, data: LessonCreate) -> LessonOrm:
+        new_lesson = self.lesson_model(**data.dict())
+        self.db.add(new_lesson)
+        self.db.commit()
+        self.db.refresh(new_lesson)
+        return new_lesson
 
-def create_exam_db(db: Session, lesson_id: int, course_id: int):
-    count_test = (db.query(LessonOrm)
-                  .filter(LessonOrm.course_id == course_id, LessonOrm.type == LessonType.test.value)
-                  .count())
-    exam_score = 200
+    def select_lesson_db(self, lesson_id: int, student_id: int = None):
+        lesson = self.db.query(self.lesson_model).filter(self.lesson_model.id == lesson_id).first()
+        if not isinstance(lesson, LessonOrm):
+            return {"message": "Lesson not found"}
 
-    if count_test > 0:
-        test_lesson_ids = (db.query(LessonOrm.id.label("id")).
-                           filter(LessonOrm.course_id == course_id,
-                                  LessonOrm.type == LessonType.test.value)
-                           .all())
+        if lesson.type == LessonType.lecture.value:
+            return self.lecture_repo.select_lecture_data(lesson=lesson)
 
-        lesson_ids = [test_lesson.id for test_lesson in test_lesson_ids]
-        test_total_score = db.query(func.sum(TestOrm.score)).filter(TestOrm.lesson_id.in_(lesson_ids)).scalar()
-        exam_score -= test_total_score
+        elif lesson.type == LessonType.test.value:
+            return self.test_repo.select_test_data(lesson=lesson, student_id=student_id)
 
-    new_exam = ExamOrm(score=exam_score, attempts=10, timer=40, lesson_id=lesson_id)
-    db.add(new_exam)
-    db.commit()
-    db.refresh(new_exam)
-    return new_exam
+        else:
+            return self.exam_repo.select_exam_data(lesson)
 
+    def select_lessons_by_course_db(self, course_id: int):
+        return (self.db.query(self.lesson_model)
+                .filter(self.lesson_model.course_id == course_id)
+                .order_by(asc(self.lesson_model.number))
+                .all())
 
-def select_lesson_db(db: Session, lesson_id: int, student_id: int = None):
-    lesson = db.query(LessonOrm).filter(LessonOrm.id == lesson_id).first()
-    if not isinstance(lesson, LessonOrm):
-        return {"message": "Lesson not found"}
+    def select_lesson_by_id_db(self, lesson_id: int):
+        return self.db.query(self.lesson_model).filter(self.lesson_model.id == lesson_id).first()
 
-    if lesson.type == LessonType.lecture.value:
-        repository = LectureRepository(db=db)
-        return repository.select_lecture_data(lesson=lesson)
+    def select_lesson_by_number_and_course_id_db(self, number: int, course_id: int):
+        return (self.db.query(self.lesson_model)
+                .filter(self.lesson_model.number == number,
+                        self.lesson_model.course_id == course_id)
+                .first())
 
-    elif lesson.type == LessonType.test.value:
-        repository = TestRepository(db=db)
-        return repository.select_test_data(lesson=lesson, student_id=student_id)
+    def select_lesson_by_type_and_title_db(self, lesson_type: LessonType, lesson_title: str):
+        return (self.db.query(self.lesson_model)
+                .filter(self.lesson_model.type == lesson_type,
+                        self.lesson_model.title == lesson_title)
+                .first())
 
-    else:
-        repository = ExamRepository(db=db)
-        return repository.select_exam_data(lesson=lesson)
+    def check_lesson_number_db(self, course_id: int, number: int):
+        return (self.db.query(self.lesson_model)
+                .filter(self.lesson_model.course_id == course_id,
+                        self.lesson_model.number == number)
+                .count())
 
+    def update_lesson_number_db(self, number: int, course_id: int):
+        (self.db.query(self.lesson_model)
+         .filter(self.lesson_model.course_id == course_id,
+                 self.lesson_model.number >= number)
+         .update(
+            {self.lesson_model.number: self.lesson_model.number + 1}, synchronize_session=False))
 
-def select_lessons_by_course_db(db: Session, course_id: int):
-    return db.query(LessonOrm).filter(LessonOrm.course_id == course_id).order_by(asc(LessonOrm.number)).all()
+        self.db.commit()
 
+    def search_lesson(self, query: str):
+        regex_query = fr"\y{query}.*"
+        return self.db.query(self.lesson_model).filter(self.lesson_model.title.op('~*')(regex_query)).all()
 
-def select_lesson_by_id_db(db: Session, lesson_id: int):
-    return db.query(LessonOrm).filter(LessonOrm.id == lesson_id).first()
+    def get_lesson_info(self, lessons: List[LessonOrm]):
+        test_ids = []
 
-
-def select_lesson_by_number_and_course_id_db(db: Session, number: int, course_id: int):
-    return db.query(LessonOrm).filter(LessonOrm.number == number, LessonOrm.course_id == course_id).first()
-
-
-def select_lesson_by_type_and_title_db(db: Session, lesson_type: LessonType, lesson_title: str):
-    return db.query(LessonOrm).filter(LessonOrm.type == lesson_type, LessonOrm.title == lesson_title).first()
-
-
-def check_lesson_number_db(db: Session, course_id: int, number: int):
-    return db.query(LessonOrm).filter(LessonOrm.course_id == course_id, LessonOrm.number == number).count()
-
-
-def update_lesson_number_db(db: Session, number: int, course_id: int):
-    (db.query(LessonOrm).filter(LessonOrm.course_id == course_id, LessonOrm.number >= number).
-     update({LessonOrm.number: LessonOrm.number + 1}, synchronize_session=False))
-
-    db.commit()
-
-
-def check_validity_lesson(db: Session, course_id: int):
-    total_test_score = (db.query(func.sum(TestOrm.score))
-                        .join(LessonOrm)
-                        .filter(LessonOrm.course_id == course_id, LessonOrm.type == LessonType.test.value)
-                        .scalar())
-
-    total_exam_score = (db.query(func.sum(ExamOrm.score))
-                        .join(LessonOrm)
-                        .filter(LessonOrm.course_id == course_id, LessonOrm.type == LessonType.exam.value)
-                        .scalar())
-
-    if total_test_score + total_exam_score != 200:
-        return {"result": False, "message": "Course max score less than 200"}
-
-    tests = db.query(TestOrm).join(LessonOrm).filter(LessonOrm.course_id == course_id).all()
-    for test in tests:
-        test_question_scores = (db.query(func.sum(TestQuestionOrm.q_score))
-                                .filter(TestQuestionOrm.test_id == test.id)
-                                .scalar())
-
-        if test_question_scores != test.score:
-            return {"result": False, "message": f"Sum for all question in test {test.id} not equal {test.score}"}
-
-    exam = db.query(ExamOrm).join(LessonOrm).filter(LessonOrm.course_id == course_id).first()
-    exam_question_score = (db.query(func.sum(ExamQuestionOrm.q_score))
-                           .filter(ExamQuestionOrm.exam_id == exam.id)
-                           .scalar())
-
-    if exam_question_score != total_exam_score:
-        return {"result": False, "message": f"Sum for all question in exam {exam.id} not equal {exam.score}"}
-    else:
-        db.query(CourseOrm).filter(CourseOrm.id == course_id).update({CourseOrm.is_published: True})
-        return {"result": True, "message": "Course successfully published"}
-
-
-def search_lesson(db: Session, query: str):
-    regex_query = fr"\y{query}.*"
-    return db.query(LessonOrm).filter(LessonOrm.title.op('~*')(regex_query)).all()
-
-
-def get_lesson_info(db: Session, lessons: List[LessonOrm]):
-    for lesson in lessons:
-        if lesson.type == LessonType.exam.value:
-            count_questions = (
-                db.query(ExamQuestionOrm.id)
-                .select_from(ExamOrm)
-                .join(ExamQuestionOrm, ExamOrm.id == ExamQuestionOrm.exam_id)
-                .filter(ExamOrm.lesson_id == lesson.id)
-                .count()
-            )
-
-            setattr(lesson, "count_questions", count_questions)
-
-    test_ids = [lesson.id for lesson in lessons if lesson.type == LessonType.test.value]
-
-    if test_ids:
-        test_question_counts = (
-            db.query(
-                TestOrm.lesson_id,
-                func.coalesce(func.count(TestQuestionOrm.id), 0).label("count_questions"))
-            .outerjoin(TestQuestionOrm, TestOrm.id == TestQuestionOrm.test_id)
-            .filter(TestOrm.lesson_id.in_(test_ids))
-            .group_by(TestOrm.lesson_id)
-            .all()
-        )
-
-        test_question_counts_dict = {lesson_id: count for lesson_id, count in test_question_counts}
         for lesson in lessons:
-            if lesson in test_question_counts_dict.keys():
-                setattr(lesson, "count_questions", test_question_counts_dict[lesson.id])
+            if lesson.type == LessonType.exam.value:
+                count_questions = self.exam_repo.select_quantity_question(lesson_id=lesson.id)
+                setattr(lesson, "count_questions", count_questions)
+
+            elif lesson.type == LessonType.test.value:
+                test_ids.append(lesson.id)
+
+            else:
+                continue
+
+        if test_ids:
+            test_question_counts_dict = self.test_repo.select_quantity_questions(test_ids=test_ids)
+
+            for lesson in lessons:
+                if lesson in test_question_counts_dict.keys():
+                    setattr(lesson, "count_questions", test_question_counts_dict[lesson.id])
+
+    def check_validity_lessons(self, course_id: int):
+        tests_score = self.test_repo.select_test_sum_scores(course_id=course_id)
+        exam_orm = self.exam_repo.select_exam_score(course_id=course_id)
+
+        if tests_score + exam_orm.score != 200:
+            return {"result": False, "message": "Course max score less than 200"}
+
+        tests = self.test_repo.select_tests_in_course(course_id=course_id)
+        for test in tests:
+            test_question_scores = self.test_repo.select_sum_questions_score(test_id=test.id)
+            if test_question_scores != test.score:
+                return {"result": False, "message": f"Sum for all question in test {test.id} not equal {test.score}"}
+
+        exam_question_score = self.exam_repo.select_sum_questions_score(exam_id=exam_orm.id)
+        if exam_question_score != exam_orm.score:
+            return {
+                "result": False,
+                "message": f"Sum for all question in exam {exam_orm.id} not equal {exam_orm.score}"}
+        else:
+            return {"result": True, "message": "Course successfully published"}

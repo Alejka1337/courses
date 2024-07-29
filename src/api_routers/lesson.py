@@ -4,9 +4,7 @@ from fastapi import APIRouter, Body, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
-from src.crud.course import CourseRepository
-from src.crud.lesson import (check_lesson_number_db, create_exam_db, create_lecture_db, create_lesson_db,
-                             create_test_db, select_lesson_db, update_lesson_number_db)
+from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_count_student_course_db
 from src.enums import LessonType, StaticFileType, UserType
 from src.models import UserOrm
@@ -26,10 +24,11 @@ async def create_lesson(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        if check_lesson_number_db(db=db, course_id=data.course_id, number=data.number) >= 1:
-            update_lesson_number_db(db=db, course_id=data.course_id, number=data.number)
+        repository = LessonRepository(db=db)
+        if repository.check_lesson_number_db(course_id=data.course_id, number=data.number) >= 1:
+            repository.update_lesson_number_db(course_id=data.course_id, number=data.number)
 
-        lesson = create_lesson_db(db=db, data=data)
+        lesson = repository.create_lesson_db(data=data)
         response = {
             "id": lesson.id,
             "type": lesson.type,
@@ -42,21 +41,19 @@ async def create_lesson(
             "is_published": lesson.is_published
         }
 
-        course_repository = CourseRepository(db=db)
-
         if data.type.value == LessonType.lecture.value:
-            course_repository.update_quantity_lecture(course_id=data.course_id)
-            lecture = create_lecture_db(db=db, lesson_id=lesson.id)
-            response["lecture_id"] = lecture.id
+            repository.course_repo.update_quantity_lecture(course_id=data.course_id)
+            new_lecture = repository.lecture_repo.create_lecture(lesson_id=lesson.id)
+            response["lecture_id"] = new_lecture.id
 
         elif data.type.value == LessonType.test.value:
-            course_repository.update_quantity_test(course_id=data.course_id)
-            test = create_test_db(db=db, lesson_id=lesson.id)
-            response["test_id"] = test.id
-            celery_tasks.check_correct_score.delay(course_id=data.course_id)
+            repository.course_repo.update_quantity_test(course_id=data.course_id)
+            new_test = repository.test_repo.create_test(lesson_id=lesson.id)
+            response["test_id"] = new_test.id
 
+            celery_tasks.check_correct_score.delay(course_id=data.course_id)
         else:
-            exam = create_exam_db(db=db, lesson_id=lesson.id, course_id=data.course_id)
+            exam = repository.exam_repo.create_exam(lesson_id=lesson.id, course_id=data.course_id)
             response["exam_id"] = exam.id
 
         if select_count_student_course_db(db=db, course_id=lesson.course_id) > 0:
@@ -86,7 +83,8 @@ async def get_lesson(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
+    repository = LessonRepository(db=db)
     if user.usertype == UserType.student.value:
-        return select_lesson_db(db=db, lesson_id=lesson_id, student_id=user.student.id)
+        return repository.select_lesson_db(lesson_id=lesson_id, student_id=user.student.id)
     else:
-        return select_lesson_db(db=db, lesson_id=lesson_id)
+        return repository.select_lesson_db(lesson_id=lesson_id)

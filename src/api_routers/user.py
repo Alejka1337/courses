@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from src.celery import celery_tasks
 from src.crud.category import CategoryRepository
 from src.crud.course import CourseRepository
-from src.crud.lesson import search_lesson
+from src.crud.lesson import LessonRepository
 from src.crud.student_course import subscribe_student_to_course_db
 from src.crud.user import UserRepository
 from src.enums import StaticFileType, UserType
@@ -505,5 +505,6 @@ async def search(query: str, db: Session = Depends(get_db),):
     course_repository = CourseRepository(db=db)
     results["courses"] = course_repository.search_course(query=query)
 
-    results["lessons"] = search_lesson(db=db, query=query)
+    lesson_repository = LessonRepository(db=db)
+    results["lessons"] = lesson_repository.search_lesson(query=query)
     return results

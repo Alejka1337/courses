@@ -1,7 +1,9 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.enums import LessonType, QuestionTypeOption
-from src.models import ExamAnswerOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm, LessonOrm
+from src.models import (ExamAnswerOrm, ExamMatchingLeftOrm, ExamMatchingRightOrm, ExamOrm, ExamQuestionOrm, LessonOrm,
+                        TestOrm)
 from src.schemas.test import ExamAnswerUpdate, ExamConfigUpdate, ExamMatchingUpdate, ExamQuestionUpdate
 
 
@@ -14,6 +16,29 @@ class ExamRepository:
         self.answer_model = ExamAnswerOrm
         self.matching_left_model = ExamMatchingLeftOrm
         self.matching_right_model = ExamMatchingRightOrm
+
+    def create_exam(self, lesson_id: int, course_id: int):
+        count_test = (self.db.query(self.lesson_model)
+                      .filter(self.lesson_model.course_id == course_id,
+                              self.lesson_model.type == LessonType.test.value)
+                      .count())
+
+        exam_score = 200
+        if count_test > 0:
+            test_lesson_ids = (self.db.query(self.lesson_model.id.label("id")).
+                               filter(self.lesson_model.course_id == course_id,
+                                      self.lesson_model.type == LessonType.test.value)
+                               .all())
+
+            lesson_ids = [test_lesson.id for test_lesson in test_lesson_ids]
+            test_total_score = self.db.query(func.sum(TestOrm.score)).filter(TestOrm.lesson_id.in_(lesson_ids)).scalar()
+            exam_score -= test_total_score
+
+        new_exam = ExamOrm(score=exam_score, attempts=10, timer=40, lesson_id=lesson_id)
+        self.db.add(new_exam)
+        self.db.commit()
+        self.db.refresh(new_exam)
+        return new_exam
 
     def create_exam_question(
             self,
@@ -84,6 +109,11 @@ class ExamRepository:
                 .first())
         return exam
 
+    def select_sum_questions_score(self, exam_id: int):
+        return (self.db.query(func.sum(self.exam_model.q_score))
+                .filter(self.exam_model.exam_id == exam_id)
+                .scalar())
+
     def select_correct_answer(self, question_id: int) -> int:
         return (self.db.query(self.answer_model.id)
                 .filter(self.answer_model.question_id == question_id)
@@ -113,6 +143,17 @@ class ExamRepository:
 
     def select_exam_id(self, lesson_id: int):
         return self.db.query(self.exam_model.id).filter(self.exam_model.lesson_id == lesson_id).scalar()
+
+    def select_quantity_question(self, lesson_id: int):
+        quantity_question = (
+            self.db.query(self.question_model.id)
+            .select_from(self.exam_model)
+            .join(self.question_model, self.exam_model.id == self.question_model.exam_id)
+            .filter(self.exam_model.lesson_id == lesson_id)
+            .count()
+        )
+
+        return quantity_question
 
     def select_exam_data(self, lesson: LessonOrm):
         exam = self.db.query(self.exam_model).filter(self.exam_model.lesson_id == lesson.id).first()

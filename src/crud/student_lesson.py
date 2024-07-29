@@ -3,7 +3,7 @@ from typing import List
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
-from src.crud.lesson import select_lesson_by_id_db
+from src.crud.lesson import LessonRepository
 from src.enums import CourseStatus, LessonStatus, LessonType
 from src.models import LessonOrm, StudentCourseAssociation, StudentLessonOrm
 
@@ -48,7 +48,8 @@ def set_available_student_lesson_db(db: Session, student_lesson: StudentLessonOr
 
 
 def update_student_lesson_status_db(db: Session, student_id: int, lesson_id: int):
-    current_lesson = select_lesson_by_id_db(db=db, lesson_id=lesson_id)
+    lesson_repo = LessonRepository(db=db)
+    current_lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
 
     next_lessons = (db.query(LessonOrm.id.label("id"), LessonOrm.type.label("type"))
                     .filter(LessonOrm.course_id == current_lesson.course_id,

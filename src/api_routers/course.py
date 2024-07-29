@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.course import CourseRepository
-from src.crud.lesson import check_validity_lesson
+from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_student_course_info, select_student_lesson_info
 from src.enums import StaticFileType, UserType
 from src.models import UserOrm
@@ -199,6 +199,11 @@ async def publish_course(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.usertype == UserType.moder.value:
-        return check_validity_lesson(db=db, course_id=course_id)
+        lesson_repo = LessonRepository(db=db)
+        repository = CourseRepository(db=db)
+        response = lesson_repo.check_validity_lessons(course_id=course_id)
+        if response["result"]:
+            repository.published_course(course_id=course_id)
+        return response
     else:
         raise PermissionDeniedException()

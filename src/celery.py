@@ -9,7 +9,7 @@ from src.config import BROKER_URL
 from src.crud.course import CourseRepository
 from src.crud.exam import ExamRepository
 from src.crud.lecture import LectureRepository
-from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_type_and_title_db, select_lessons_by_course_db
+from src.crud.lesson import LessonRepository
 from src.crud.notifications import NotificationRepository
 from src.crud.student_course import (select_student_course_db, select_students_whose_bought_courses,
                                      update_course_present, update_course_score)
@@ -109,7 +109,8 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def create_student_lesson(self, student_id: int, course_id: int):
         try:
-            lessons = select_lessons_by_course_db(db=self.db, course_id=course_id)
+            lesson_repo = LessonRepository(db=self.db)
+            lessons = lesson_repo.select_lessons_by_course_db(course_id=course_id)
 
             for index, lesson in enumerate(lessons):
                 if lesson.number == 1:
@@ -136,8 +137,9 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def update_student_course_progress(self, student_id: int, lesson_id: int):
         try:
-            lesson = select_lesson_by_id_db(db=self.db, lesson_id=lesson_id)
-            course_lessons = select_lessons_by_course_db(db=self.db, course_id=lesson.course_id)
+            lesson_repo = LessonRepository(db=self.db)
+            lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
+            course_lessons = lesson_repo.select_lessons_by_course_db(course_id=lesson.course_id)
 
             total_lessons = select_count_student_lessons_db(
                 db=self.db, course_lessons=course_lessons, student_id=student_id
@@ -159,7 +161,8 @@ class CeleryTasks:
 
     @celery_app.task(bind=True, base=DatabaseTask)
     def update_student_course_grade(self, student_id: int, lesson_id: int, score: int):
-        lesson = select_lesson_by_id_db(db=self.db, lesson_id=lesson_id)
+        lesson_repo = LessonRepository(db=self.db)
+        lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
         student_course = select_student_course_db(db=self.db, course_id=lesson.course_id, student_id=student_id)
         update_course_score(db=self.db, student_course=student_course, score=score)
 
@@ -185,7 +188,8 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def create_update_course_notification(self, new_lesson_id: int, course_id: int):
         student_ids = select_students_for_course_db(db=self.db, course_id=course_id)
-        lesson = select_lesson_by_id_db(db=self.db, lesson_id=new_lesson_id)
+        lesson_repo = LessonRepository(db=self.db)
+        lesson = lesson_repo.select_lesson_by_id_db(lesson_id=new_lesson_id)
 
         course_repository = CourseRepository(db=self.db)
         course_name = course_repository.select_course_title_by_id(course_id=course_id)
@@ -202,11 +206,12 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def update_student_lessons(self, student_id: int, lesson_info: dict):
 
-        new_lesson = select_lesson_by_type_and_title_db(
-            db=self.db, lesson_title=lesson_info["lesson_title"], lesson_type=lesson_info["lesson_type"]
+        lesson_repo = LessonRepository(db=self.db)
+        new_lesson = lesson_repo.select_lesson_by_type_and_title_db(
+            lesson_title=lesson_info["lesson_title"], lesson_type=lesson_info["lesson_type"]
         )
 
-        course_lessons = select_lessons_by_course_db(db=self.db, course_id=new_lesson.course_id)
+        course_lessons = lesson_repo.select_lessons_by_course_db(course_id=new_lesson.course_id)
         student_lessons = select_student_lessons_db(db=self.db, course_lessons=course_lessons, student_id=student_id)
 
         update_student_lesson_structure(

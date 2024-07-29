@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.lecture import LectureRepository
-from src.crud.lesson import select_lesson_by_id_db, select_lesson_by_number_and_course_id_db
+from src.crud.lesson import LessonRepository
 from src.crud.student_lesson import confirm_student_lecture_db, select_student_lesson_db, set_active_student_lesson_db
 from src.enums import UserType
 from src.models import UserOrm
@@ -348,13 +348,14 @@ async def confirm_lecture(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
+    lesson_repo = LessonRepository(db=db)
     if user.usertype == UserType.student.value:
-        lesson = select_lesson_by_id_db(db=db, lesson_id=lesson_id)
+        lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
         student_lesson = select_student_lesson_db(db=db, lesson_id=lesson_id, student_id=user.student.id)
         confirm_student_lecture_db(db=db, student_lesson=student_lesson)
 
         number = lesson.number + 1
-        next_lesson = select_lesson_by_number_and_course_id_db(db=db, number=number, course_id=lesson.course_id)
+        next_lesson = lesson_repo.select_lesson_by_number_and_course_id_db(number=number, course_id=lesson.course_id)
         next_student_lesson = select_student_lesson_db(db=db, lesson_id=next_lesson.id, student_id=user.student.id)
         set_active_student_lesson_db(db=db, student_lesson=next_student_lesson)
 
