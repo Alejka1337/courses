@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.lesson import LessonRepository
+from src.crud.course import CourseRepository
 from src.crud.student_course import select_count_student_course_db
 from src.enums import LessonType, StaticFileType, UserType
 from src.models import UserOrm
@@ -42,12 +43,16 @@ async def create_lesson(
         }
 
         if data.type.value == LessonType.lecture.value:
-            repository.course_repo.update_quantity_lecture(course_id=data.course_id)
+            course_repository = CourseRepository(db=db)
+            course_repository.update_quantity_lecture(course_id=data.course_id)
+
             new_lecture = repository.lecture_repo.create_lecture(lesson_id=lesson.id)
             response["lecture_id"] = new_lecture.id
 
         elif data.type.value == LessonType.test.value:
-            repository.course_repo.update_quantity_test(course_id=data.course_id)
+            course_repository = CourseRepository(db=db)
+            course_repository.update_quantity_test(course_id=data.course_id)
+
             new_test = repository.test_repo.create_test(lesson_id=lesson.id)
             response["test_id"] = new_test.id
 
