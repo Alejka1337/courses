@@ -38,6 +38,11 @@ class MatchingRight(BaseModel):
     right: List[MatchingItem]
 
 
+class MatchingResponse(BaseModel):
+    left: List[MatchingItem]
+    right: List[MatchingItem]
+
+
 class TestMatchingBase(BaseModel):
     right_text: str
     left_text: str
@@ -122,7 +127,7 @@ class TestQuestionResponse(BaseModel):
     q_type: QuestionTypeOption
     hidden: Optional[bool] = False
     image_path: Optional[str] = None
-    answers: List[Union[TestAnswerResponse, Union[MatchingLeft, MatchingRight]]]
+    answers: List[Union[TestAnswerResponse, MatchingResponse]]
 
 
 class QuestionListResponse(BaseModel):

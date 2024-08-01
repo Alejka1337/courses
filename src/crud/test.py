@@ -78,7 +78,7 @@ class TestRepository:
 
         right_option = self.matching_right_model(text=right_text, question_id=question_id)
         self.db.add(right_option)
-        self.db.commit()
+        self.db.flush()
 
         left_option = self.matching_left_model(text=left_text, question_id=question_id, right_id=right_option.id)
         self.db.add(left_option)
@@ -245,6 +245,18 @@ class TestRepository:
             right.text = data.right_text
 
         self.db.commit()
+
+    def delete_matching(self, left_id: int) -> None:
+        left = self.db.query(self.matching_left_model).filter(self.matching_left_model.id == left_id).first()
+        right = self.db.query(self.matching_right_model).filter(self.matching_right_model.id == left.right_id).first()
+
+        try:
+            self.db.delete(left)
+            self.db.delete(right)
+            self.db.commit()
+        except Exception as e:
+            print(e)
+            self.db.rollback()
 
     def select_test_data(self, lesson: LessonOrm, student_id: int = None):
         test = self.db.query(TestOrm).filter(TestOrm.lesson_id == lesson.id).first()
