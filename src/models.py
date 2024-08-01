@@ -50,6 +50,18 @@ class UserOrm(Base):
     received_messages: Mapped[list["ChatMessageOrm"]] = relationship(back_populates="recipient",
                                                                      foreign_keys="ChatMessageOrm.recipient_id")
 
+    @property
+    def is_moder(self):
+        if self.usertype == UserType.moder.value:
+            return True
+        return False
+
+    @property
+    def is_student(self):
+        if self.usertype == UserType.student.value:
+            return True
+        return False
+
 
 class ImageOrm(Base):
     __tablename__ = "images"
