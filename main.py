@@ -1,8 +1,10 @@
 import uvicorn
 # from debug_toolbar.middleware import DebugToolbarMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import ORJSONResponse
+from fastapi.security import HTTPBearer
 
 from src.api_routers.category import router as category_router
 from src.api_routers.chat import router as chat_router
@@ -18,9 +20,11 @@ from src.api_routers.test import router as test_router
 from src.api_routers.user import router as user_router
 from src.config import API_PREFIX
 
-app = FastAPI(debug=True)
+http_bearer = HTTPBearer(auto_error=False)
+
+app = FastAPI(debug=True, default_response_class=ORJSONResponse)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.include_router(user_router, prefix=API_PREFIX, tags=["User"])
+app.include_router(user_router, prefix=API_PREFIX, tags=["User"], dependencies=[Depends(http_bearer)])
 app.include_router(notification_router, prefix=API_PREFIX, tags=["Notification"])
 app.include_router(category_router, prefix=API_PREFIX, tags=["Category"])
 app.include_router(course_router, prefix=API_PREFIX, tags=["Course"])
