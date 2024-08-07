@@ -1,9 +1,16 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Union, NamedTuple
 
 from pydantic import BaseModel, PositiveInt
 from typing_extensions import Self
 
 from src.enums import QuestionTypeOption
+
+
+class MatchingTuple(NamedTuple):
+    left_id: PositiveInt
+    left_text: str
+    right_id: PositiveInt
+    right_text: str
 
 
 class TestAnswerBase(BaseModel):
@@ -22,6 +29,22 @@ class TestAnswerResponse(TestAnswerBase):
             a_text=obj.a_text,
             is_correct=obj.is_correct,
             image_path=obj.image_path
+        )
+
+
+class MatchingResponseAfterAdd(BaseModel):
+    left_id: PositiveInt
+    left_text: str
+    right_id: PositiveInt
+    right_text: str
+
+    @classmethod
+    def from_orm(cls, obj: MatchingTuple):
+        return cls(
+            left_id=obj.left_id,
+            left_text=obj.left_text,
+            right_id=obj.right_id,
+            right_text=obj.right_text
         )
 
 
@@ -132,3 +155,4 @@ class TestQuestionResponse(BaseModel):
 
 class QuestionListResponse(BaseModel):
     questions: List[TestQuestionResponse]
+

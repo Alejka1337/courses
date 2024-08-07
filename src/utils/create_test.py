@@ -28,7 +28,8 @@ def create_test_logic(repository: TestRepository,  data: List[TestQuestionBase],
                 answer_orm = repository.create_test_answer(
                     question_id=question_orm.id,
                     a_text=answer_data.a_text,
-                    is_correct=answer_data.is_correct
+                    is_correct=answer_data.is_correct,
+                    image_path=answer_data.image_path if answer_data.image_path else None
                 )
 
                 answers.append(TestAnswerResponse.from_orm(answer_orm))

@@ -8,7 +8,8 @@ from src.crud.test import TestRepository
 from src.enums import UserType
 from src.models import UserOrm
 from src.schemas.test import (QuestionListResponse, TestAnswerAdd, TestAnswerUpdate, TestConfigUpdate, TestMatchingAdd,
-                              TestMatchingUpdate, TestQuestionBase, TestQuestionUpdate, TestAnswerResponse)
+                              TestMatchingUpdate, TestQuestionBase, TestQuestionUpdate, TestAnswerResponse,
+                              MatchingResponseAfterAdd, MatchingTuple)
 from src.session import get_db
 from src.utils.create_test import create_test_logic
 from src.utils.exceptions import PermissionDeniedException
@@ -128,7 +129,7 @@ async def update_test_answer(
         raise PermissionDeniedException()
 
 
-@router.post("/matching/add")
+@router.post("/matching/add", response_model=MatchingResponseAfterAdd)
 async def add_test_matching(
         data: TestMatchingAdd,
         db: Session = Depends(get_db),
@@ -136,12 +137,17 @@ async def add_test_matching(
 ):
     if user.usertype == UserType.moder.value:
         repository = TestRepository(db=db)
-        repository.create_test_matching(
+        left_option, right_option = repository.create_test_matching(
             left_text=data.left_text,
             right_text=data.right_text,
             question_id=data.question_id
         )
-        return {"message": "Matching have been added"}
+
+        return MatchingResponseAfterAdd.from_orm(
+            MatchingTuple(
+                left_option.id, left_option.text, right_option.id, right_option.text
+            )
+        )
 
     else:
         raise PermissionDeniedException()

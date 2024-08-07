@@ -174,6 +174,17 @@ class TestRepository:
         test_question_counts_dict = {lesson_id: count for lesson_id, count in test_question_counts}
         return test_question_counts_dict
 
+    def select_quantity_question(self, lesson_id: int):
+        quantity_question = (
+            self.db.query(self.question_model.id)
+            .select_from(self.model)
+            .join(self.question_model, self.model.id == self.question_model.test_id)
+            .filter(self.model.lesson_id == lesson_id)
+            .count()
+        )
+
+        return quantity_question
+
     def update_test_config(self, test_id: int, data: TestConfigUpdate) -> None:
         test = self.db.query(self.model).filter(self.model.id == test_id).first()
 
