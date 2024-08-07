@@ -22,6 +22,12 @@ class StudentExamRepository:
         self.db.refresh(new_attempt)
         return new_attempt
 
+    def update_attempt_score(self, attempt_id: int, score: int) -> None:
+        self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).update(
+            {self.attempt_model.attempt_score: score}, synchronize_session=False)
+
+        self.db.commit()
+
     def select_student_attempts(self, exam_id: int, student_id: int) -> Union[List[StudentExamAttemptsOrm], None]:
         res = (self.db.query(self.attempt_model)
                .filter(self.attempt_model.student_id == student_id)
@@ -34,7 +40,7 @@ class StudentExamRepository:
         return res
 
     def select_last_attempt_number(self, exam_id: int, student_id: int) -> Optional[int]:
-        res = (self.db.query(self.attempt_model.attempt_number.label("number"))
+        res = (self.db.query(self.attempt_model.attempt_number)
                .filter(self.attempt_model.student_id == student_id)
                .filter(self.attempt_model.exam_id == exam_id)
                .order_by(desc(self.attempt_model.attempt_number))

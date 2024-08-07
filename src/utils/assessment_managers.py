@@ -1,6 +1,3 @@
-from abc import ABC, abstractmethod
-
-
 from sqlalchemy.orm import Session
 
 from src.schemas.student_exam import StudentExam, ExamNewAttempt, StudentAnswerDetail, StudentExamAnswer, \
@@ -8,49 +5,6 @@ from src.schemas.student_exam import StudentExam, ExamNewAttempt, StudentAnswerD
 from src.crud.exam import ExamRepository
 from src.crud.student_exam import StudentExamRepository
 from src.enums import QuestionTypeOption
-
-
-# class AssessmentManagerABC(ABC):
-#
-#     @abstractmethod
-#     def get_attempt_number(self) -> int:
-#         pass
-#
-#     @abstractmethod
-#     def format_attempt_data(self, number: int):
-#         pass
-#
-#     @abstractmethod
-#     def create_new_attempt(self):
-#         pass
-#
-#     @abstractmethod
-#     def update_attempt_score(self):
-#         pass
-#
-#     @abstractmethod
-#     def inspect_match_question(self, q_id: int, student_matching: list):
-#         pass
-#
-#     @abstractmethod
-#     def inspect_multiple_question(self, q_id: int, a_ids: list[int]):
-#         pass
-#
-#     @abstractmethod
-#     def inspect_classic_question(self, q_id: int, a_id: int):
-#         pass
-#
-#     @abstractmethod
-#     def start_inspect(self): pass
-#
-#     @abstractmethod
-#     def create_student_answer(self): pass
-#
-#     @abstractmethod
-#     def create_student_answers(self): pass
-#
-#     @abstractmethod
-#     def create_student_matching(self): pass
 
 
 class ExamManager:
@@ -78,11 +32,11 @@ class ExamManager:
         return self._student_repository
 
     def get_exam_id(self):
-        exam_id = self._repository.select_exam_id(lesson_id=self._lesson_id)
+        exam_id = self.repository.select_exam_id(lesson_id=self._lesson_id)
         return exam_id
 
     def get_attempt_number(self) -> int:
-        last_attempt = self._student_repository.select_last_attempt_number(
+        last_attempt = self.student_repository.select_last_attempt_number(
             student_id=self._student_id,
             exam_id=self._exam_id
         )
@@ -92,25 +46,25 @@ class ExamManager:
 
     def format_attempt_data(self, number: int) -> ExamNewAttempt:
         new_attempt_detail = ExamNewAttempt(
-            number=number,
-            score=self._final_score,
+            attempt_number=number,
+            attempt_score=self._final_score,
             exam_id=self._exam_id,
             student_id=self._student_id
         )
 
         return new_attempt_detail
 
-    def create_new_attempt(self, attempt_data: ExamNewAttempt):
-        new_attempt = self.student_repository.create_attempt(attempt_detail=attempt_data)
+    def create_new_attempt(self, number: int):
+        format_data = self.format_attempt_data(number=number)
+        new_attempt = self.student_repository.create_attempt(attempt_detail=format_data)
         return new_attempt.id
 
-    def update_attempt_score(self):
-        pass
+    def update_attempt_score(self, attempt_id: int):
+        self.student_repository.update_attempt_score(attempt_id=attempt_id, score=self._final_score)
 
     def start_inspect(self):
         attempt_number = self.get_attempt_number()
-        attempt_data = self.format_attempt_data(attempt_number)
-        new_attempt_id = self.create_new_attempt(attempt_data=attempt_data)
+        new_attempt_id = self.create_new_attempt(attempt_number)
 
         for answer in self._answers:
             if answer.q_type == QuestionTypeOption.matching.value:
@@ -130,7 +84,8 @@ class ExamManager:
                 self._final_score += question_score
                 self.create_student_answer(new_attempt_id=new_attempt_id, question_score=question_score, answer=answer)
 
-        pass
+        self.update_attempt_score(attempt_id=new_attempt_id)
+        return self._final_score
 
     def inspect_match_question(self, q_id: int, student_matching: list):
         question = self.repository.select_exam_question(question_id=q_id)
@@ -176,8 +131,8 @@ class ExamManager:
             score=question_score,
             question_id=answer.q_id,
             question_type=answer.q_type,
-            attempt_id=new_attempt_id,
-            answer=answer.a_id
+            student_attempt_id=new_attempt_id,
+            answer_id=answer.a_id
         )
 
         self.student_repository.create_student_exam_answer(answer_data=answer_to_db)
@@ -187,19 +142,19 @@ class ExamManager:
             score=question_score,
             question_id=answer.q_id,
             question_type=answer.q_type,
-            attempt_id=new_attempt_id,
-            answer=answer.a_ids
+            student_attempt_id=new_attempt_id,
+            answer_ids=answer.a_ids
         )
 
         self.student_repository.create_student_exam_answers(answers_data=answers_to_db)
 
     def create_student_matching(self, new_attempt_id: int, question_score: int, answer: StudentExamMatching):
-        for match in answer.matchings:
+        for match in answer.matching:
             match_to_db = StudentMatchingDetail(
                 score=(question_score/4),
                 question_id=answer.q_id,
                 question_type=answer.q_type,
-                attempt_id=new_attempt_id,
+                student_attempt_id=new_attempt_id,
                 left_id=match.left_id,
                 right_id=match.right_id
             )

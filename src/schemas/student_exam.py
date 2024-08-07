@@ -40,24 +40,24 @@ class SubmitStudentExam(BaseModel):
 
 class ExamNewAttempt(BaseModel):
     attempt_number: PositiveInt
-    attempt_score: PositiveInt
+    attempt_score: int
     exam_id: PositiveInt
     student_id: PositiveInt
 
 
 class StudentAnswerBase(BaseModel):
-    score: PositiveInt
+    score: int
     question_id: PositiveInt
     question_type: QuestionTypeOption
-    attempt_id: PositiveInt
+    student_attempt_id: PositiveInt
 
 
 class StudentAnswerDetail(StudentAnswerBase):
-    answer: PositiveInt
+    answer_id: PositiveInt
 
 
 class StudentAnswersDetail(StudentAnswerBase):
-    answers: List[PositiveInt]
+    answer_ids: List[PositiveInt]
 
 
 class StudentMatchingDetail(StudentAnswerBase):
