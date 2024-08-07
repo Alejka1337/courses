@@ -39,6 +39,9 @@ class CourseRepository:
         self.db.commit()
         self.db.refresh(new_icon)
 
+    def select_base_course_by_id(self, course_id: int):
+        return self.db.query(self.course_model).filter(self.course_model.id == course_id).first()
+
     def select_course_by_id(self, course_id: int):
         course = (self.db.query(self.course_model)
                   .filter(self.course_model.id == course_id, self.course_model.is_published)
@@ -118,8 +121,7 @@ class CourseRepository:
         (self.db.query(self.course_model)
          .filter(self.course_model.id == course_id)
          .update({
-            self.course_model.quantity_lecture: (self.course_model.quantity_lecture + 1)
-            if self.course_model.quantity_lecture else 1
+            self.course_model.quantity_lecture: func.coalesce(self.course_model.quantity_lecture, 0) + 1
          }, synchronize_session=False))
 
         self.db.commit()
@@ -128,8 +130,7 @@ class CourseRepository:
         (self.db.query(self.course_model)
          .filter(self.course_model.id == course_id)
          .update({
-            self.course_model.quantity_test: (self.course_model.quantity_test + 1)
-            if self.course_model.quantity_test else 1
+            self.course_model.quantity_test: func.coalesce(self.course_model.quantity_test, 0) + 1
          }, synchronize_session=False))
 
         self.db.commit()

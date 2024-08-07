@@ -6,8 +6,8 @@ from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_student_course_info, select_student_lesson_info
 from src.enums import StaticFileType, UserType
-from src.models import UserOrm
-from src.schemas.course import CourseCreate, CourseIconsCreate, CourseIconUpdate, CourseUpdate
+from src.models import UserOrm, CourseOrm
+from src.schemas.course import CourseCreate, CourseIconsCreate, CourseIconUpdate, CourseUpdate, CourseUpdateResponse
 from src.session import get_db
 from src.utils.decode_code import decode_access_token
 from src.utils.exceptions import PermissionDeniedException
@@ -36,7 +36,7 @@ async def create_course(
         raise PermissionDeniedException()
 
 
-@router.put("/update/{course_id}")
+@router.put("/update/{course_id}", response_model=CourseUpdateResponse)
 async def update_course(
         course_id: int,
         data: CourseUpdate,
@@ -45,7 +45,7 @@ async def update_course(
 ):
     if user.usertype == UserType.moder.value:
         repository = CourseRepository(db=db)
-        course = repository.select_course_by_id(course_id=course_id)
+        course = repository.select_base_course_by_id(course_id=course_id)
         result = repository.update_course(course=course, data=data)
         return result
     else:
@@ -60,7 +60,7 @@ async def delete_course(
 ):
     if user.usertype == UserType.moder.value:
         repository = CourseRepository(db=db)
-        course = repository.select_course_by_id(course_id=course_id)
+        course = repository.select_base_course_by_id(course_id=course_id)
         repository.delete_course(course=course)
         return {"message": "Course has been deleted"}
     else:

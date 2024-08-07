@@ -100,25 +100,17 @@ class LessonRepository:
         return self.db.query(self.lesson_model).filter(self.lesson_model.title.op('~*')(regex_query)).all()
 
     def get_lesson_info(self, lessons: List[LessonOrm]):
-        test_ids = []
-
         for lesson in lessons:
             if lesson.type == LessonType.exam.value:
                 count_questions = self.exam_repo.select_quantity_question(lesson_id=lesson.id)
                 setattr(lesson, "count_questions", count_questions)
 
             elif lesson.type == LessonType.test.value:
-                test_ids.append(lesson.id)
+                count_questions = self.test_repo.select_quantity_question(lesson_id=lesson.id)
+                setattr(lesson, "count_questions", count_questions)
 
             else:
                 continue
-
-        if test_ids:
-            test_question_counts_dict = self.test_repo.select_quantity_questions(test_ids=test_ids)
-
-            for lesson in lessons:
-                if lesson in test_question_counts_dict.keys():
-                    setattr(lesson, "count_questions", test_question_counts_dict[lesson.id])
 
     def check_validity_lessons(self, course_id: int):
         tests_score = self.test_repo.select_test_sum_scores(course_id=course_id)

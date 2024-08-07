@@ -39,17 +39,40 @@ class CourseCreate(BaseModel):
 
 
 class CourseUpdate(BaseModel):
-    title: Optional[str]
-    image_path: Optional[str]
-    price: Optional[PositiveFloat]
-    old_price: Optional[PositiveFloat]
-    category_id: Optional[PositiveInt]
-    intro_text: Optional[str]
-    skills_text: Optional[str]
-    about_text: Optional[str]
-    c_type: Optional[str]
-    c_duration: Optional[str]
-    c_award: Optional[str]
-    c_language: Optional[str]
-    c_level: Optional[str]
-    c_access: Optional[str]
+    title: Optional[str] = None
+    image_path: Optional[str] = None
+    price: Optional[PositiveFloat] = None
+    old_price: Optional[PositiveFloat] = None
+    category_id: Optional[PositiveInt] = None
+    intro_text: Optional[str] = None
+    skills_text: Optional[str] = None
+    about_text: Optional[str] = None
+    c_type: Optional[str] = None
+    c_duration: Optional[str] = None
+    c_award: Optional[str] = None
+    c_language: Optional[str] = None
+    c_level: Optional[str] = None
+    c_access: Optional[str] = None
+
+
+class CourseUpdateResponse(BaseModel):
+    title: str
+    image_path: str
+    price: float
+    old_price: Optional[float] = None
+    category_id: int
+    intro_text: str
+    skills_text: str
+    about_text: str
+    c_type: str
+    c_duration: str
+    c_award: str
+    c_language: str
+    c_level: str
+    c_access: str
+    quantity_lecture: Optional[int] = None
+    quantity_test: Optional[int] = None
+    is_published: bool
+
+    class Config:
+        orm_mode = True
