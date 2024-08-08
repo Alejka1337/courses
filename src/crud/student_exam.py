@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.enums import QuestionTypeOption
 from src.models import StudentExamAnswerOrm, StudentExamAttemptsOrm, StudentExamMatchingOrm
-from src.schemas.student_exam import ExamNewAttempt, StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail
+from src.schemas.practical import ExamNewAttempt, StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail
 
 
 class StudentExamRepository:
@@ -47,23 +47,20 @@ class StudentExamRepository:
                .scalar())
         return res
 
-    def create_student_exam_answer(self, answer_data: StudentAnswerDetail) -> None:
+    def create_student_answer(self, answer_data: StudentAnswerDetail) -> None:
         new_answer = self.answer_model(**answer_data.dict())
         self.db.add(new_answer)
         self.db.commit()
-        self.db.refresh(new_answer)
 
-    def create_student_exam_answers(self, answers_data: StudentAnswersDetail) -> None:
+    def create_student_answers(self, answers_data: StudentAnswersDetail) -> None:
         new_answers = self.answer_model(**answers_data.dict())
         self.db.add(new_answers)
         self.db.commit()
-        self.db.refresh(new_answers)
 
-    def create_student_exam_matching(self, matching_data: StudentMatchingDetail) -> None:
+    def create_student_matching(self, matching_data: StudentMatchingDetail) -> None:
         new_matching = self.matching_model(**matching_data.dict())
         self.db.add(new_matching)
         self.db.commit()
-        self.db.refresh(new_matching)
 
     def select_student_exam_answers(self, attempt_id: int) -> list:
         answers = self.db.query(self.answer_model).filter(self.answer_model.student_attempt_id == attempt_id).all()

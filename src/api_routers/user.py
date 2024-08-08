@@ -489,7 +489,7 @@ async def info_me(
 
     else:
         return {
-            "id": user.id,
+            "user_id": user.id,
             "user_type": user.usertype,
             "username": user.username,
             "chats": []

@@ -211,7 +211,7 @@ class StudentTestMatchingOrm(Base):
     __tablename__ = "student_test_matching"
 
     id: Mapped[intpk]
-    score: Mapped[int]
+    score: Mapped[float]
     question_id: Mapped[int] = mapped_column(ForeignKey("test_questions.id"))
     question_type: Mapped[QuestionTypeOption]
     left_id: Mapped[int] = mapped_column(ForeignKey("test_matching_left.id"))
@@ -260,7 +260,7 @@ class StudentExamMatchingOrm(Base):
     __tablename__ = "student_exam_matching"
 
     id: Mapped[intpk]
-    score: Mapped[int]
+    score: Mapped[float]
     question_id: Mapped[int] = mapped_column(ForeignKey("exam_questions.id"))
     question_type: Mapped[QuestionTypeOption]
     left_id: Mapped[int] = mapped_column(ForeignKey("exam_matching_left.id"))

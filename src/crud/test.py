@@ -88,7 +88,7 @@ class TestRepository:
         self.db.refresh(left_option)
         return left_option, right_option
 
-    def select_test_question(self, question_id: int):
+    def select_question(self, question_id: int) -> TestQuestionOrm | None:
         return self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
 
     def select_test_answers(self, question_id: int):
@@ -128,19 +128,16 @@ class TestRepository:
         answers = [answer.id for answer in answers_ids]
         return answers
 
-    def select_total_correct_answers(self, question_id: int) -> int:
-        total = (self.db.query(self.answer_model.id.label("id"))
-                 .filter(self.answer_model.question_id == question_id)
-                 .filter(self.answer_model.is_correct)
-                 .count())
-        return total
+    def select_count_correct_answers(self, question_id: int) -> int:
+        return (self.db.query(self.answer_model.id.label("id"))
+                .filter(self.answer_model.question_id == question_id)
+                .filter(self.answer_model.is_correct)
+                .count())
 
-    def select_correct_right(self, left_id: int) -> int:
-        return (self.db.query(self.matching_left_model.right_id)
-                .filter(self.matching_left_model.id == left_id)
-                .scalar())
+    def select_correct_right_option(self, left_id: int) -> int:
+        return self.db.query(self.matching_left_model.right_id).filter(self.matching_left_model.id == left_id).scalar()
 
-    def select_test_id_by_lesson_id(self, lesson_id: int) -> int:
+    def select_test_id(self, lesson_id: int) -> int:
         return self.db.query(self.model.id).filter(self.model.lesson_id == lesson_id).scalar()
 
     def select_tests_scores(self, course_id: int) -> int:

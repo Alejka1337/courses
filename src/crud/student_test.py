@@ -1,112 +1,94 @@
+from typing import List, Optional, Union
+
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from src.enums import QuestionTypeOption
 from src.models import StudentTestAnswerOrm, StudentTestAttemptsOrm, StudentTestMatchingOrm
+from src.schemas.practical import TestNewAttempt, StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail
 
 
-def create_student_attempts_db(db: Session, number: int, score: int, test_id: int, student_id: int):
-    new_attempt = StudentTestAttemptsOrm(
-        attempt_number=number, attempt_score=score, test_id=test_id, student_id=student_id
-    )
+class StudentTestRepository:
+    def __init__(self, db: Session):
+        self.db = db
+        self.attempt_model = StudentTestAttemptsOrm
+        self.answer_model = StudentTestAnswerOrm
+        self.matching_model = StudentTestMatchingOrm
 
-    db.add(new_attempt)
-    db.commit()
-    db.refresh(new_attempt)
-    return new_attempt
+    def create_attempt(self, attempt_data: TestNewAttempt) -> StudentTestAttemptsOrm:
+        new_attempt = self.attempt_model(**attempt_data.dict())
+        self.db.add(new_attempt)
+        self.db.commit()
+        self.db.refresh(new_attempt)
+        return new_attempt
 
+    def update_attempt_score(self, attempt_id: int, score: int) -> None:
+        self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).update(
+            {self.attempt_model.attempt_score: score}, synchronize_session=False)
 
-def create_student_test_answer_db(
-        db: Session,
-        score: int,
-        question_id: int,
-        question_type: QuestionTypeOption,
-        attempt_id: int,
-        answer: int = None,
-        answers: list = None
-):
-    student_answer = StudentTestAnswerOrm(
-        score=score,
-        question_id=question_id,
-        question_type=question_type,
-        answer_id=answer if answer else None,
-        answer_ids=answers if answers else None,
-        student_attempt_id=attempt_id
-    )
-    db.add(student_answer)
-    db.commit()
-    db.refresh(student_answer)
+        self.db.commit()
 
+    def select_student_attempts(self, test_id: int, student_id: int) -> Union[List[StudentTestAttemptsOrm], None]:
+        res = (self.db.query(self.attempt_model)
+               .filter(self.attempt_model.student_id == student_id)
+               .filter(self.attempt_model.test_id == test_id)
+               .all())
+        return res if res else None
 
-def create_student_test_matching_db(
-        db: Session,
-        score: int,
-        question_id: int,
-        question_type: QuestionTypeOption,
-        attempt_id: int,
-        left_id: int,
-        right_id: int
-):
-    student_match = StudentTestMatchingOrm(
-        score=score,
-        question_id=question_id,
-        question_type=question_type,
-        student_attempt_id=attempt_id,
-        left_id=left_id,
-        right_id=right_id
-    )
-    db.add(student_match)
-    db.commit()
-    db.refresh(student_match)
+    def select_attempt_by_id(self, attempt_id: int) -> Optional[StudentTestAttemptsOrm]:
+        res = self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).first()
+        return res
 
+    def select_last_attempt_number(self, test_id: int, student_id: int) -> Optional[int]:
+        return (self.db.query(self.attempt_model.attempt_number)
+                .filter(self.attempt_model.student_id == student_id)
+                .filter(self.attempt_model.test_id == test_id)
+                .order_by(desc(self.attempt_model.attempt_number))
+                .scalar())
 
-def select_student_attempt_db(db: Session, test_id: int, student_id: int):
-    return (db.query(StudentTestAttemptsOrm)
-            .filter(StudentTestAttemptsOrm.student_id == student_id,
-                    StudentTestAttemptsOrm.test_id == test_id)
-            .order_by(desc(StudentTestAttemptsOrm.attempt_number))
-            .first())
+    def create_student_answer(self, answer_data: StudentAnswerDetail) -> None:
+        student_answer = self.answer_model(**answer_data.dict())
+        self.db.add(student_answer)
+        self.db.commit()
 
+    def create_student_answers(self, answers_data: StudentAnswersDetail) -> None:
+        student_answers = self.answer_model(**answers_data.dict())
+        self.db.add(student_answers)
+        self.db.commit()
 
-def select_student_attempts_db(db: Session, test_id: int, student_id: int):
-    return (db.query(StudentTestAttemptsOrm)
-            .filter(StudentTestAttemptsOrm.student_id == student_id,
-                    StudentTestAttemptsOrm.test_id == test_id)
-            .all())
+    def create_student_matching(self, matching_data: StudentMatchingDetail) -> None:
+        student_match = self.matching_model(**matching_data.dict())
+        self.db.add(student_match)
+        self.db.commit()
 
+    def select_student_answers(self, attempt_id: int):
+        answers = self.db.query(self.answer_model).filter(self.answer_model.student_attempt_id == attempt_id).all()
+        matching = self.db.query(self.matching_model).filter(self.matching_model.student_attempt_id == attempt_id).all()
+        result = []
 
-def select_student_attempt_by_id(db: Session, attempt_id: int):
-    return db.query(StudentTestAttemptsOrm).filter(StudentTestAttemptsOrm.id == attempt_id).first()
+        for answer in answers:
+            if answer.question_type == QuestionTypeOption.multiple_choice:
+                data = {
+                    "q_id": answer.question_id,
+                    "q_type": answer.question_type,
+                    "answers": answer.answer_ids
+                }
+                result.append(data)
+            else:
+                data = {
+                    "q_id": answer.question_id,
+                    "q_type": answer.question_type,
+                    "answer": answer.answer_id
+                }
+                result.append(data)
 
-
-def select_student_answers_db(db: Session, attempt_id: int):
-    answers = db.query(StudentTestAnswerOrm).filter(StudentTestAnswerOrm.student_attempt_id == attempt_id).all()
-    matching = db.query(StudentTestMatchingOrm).filter(StudentTestMatchingOrm.student_attempt_id == attempt_id).all()
-    result = []
-
-    for answer in answers:
-        if answer.question_type == QuestionTypeOption.multiple_choice:
+        for match in matching:
             data = {
-                "q_id": answer.question_id,
-                "q_type": answer.question_type,
-                "answers": answer.answer_ids
-            }
-            result.append(data)
-        else:
-            data = {
-                "q_id": answer.question_id,
-                "q_type": answer.question_type,
-                "answer": answer.answer_id
+                "q_id": match.question_id,
+                "q_type": match.question_type,
+                "left_id": match.left_id,
+                "right_id": match.right_id
             }
             result.append(data)
 
-    for match in matching:
-        data = {
-            "q_id": match.question_id,
-            "q_type": match.question_type,
-            "left_id": match.left_id,
-            "right_id": match.right_id
-        }
-        result.append(data)
-
-    return result
+        return result

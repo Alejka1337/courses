@@ -95,7 +95,7 @@ class ExamRepository:
         self.db.refresh(right_option)
         self.db.refresh(left_option)
 
-    def select_exam_question(self, question_id: int):
+    def select_question(self, question_id: int):
         return self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
 
     def select_exam_score(self, course_id: int):

@@ -21,7 +21,7 @@ def create_student_lesson_db(db: Session, student_id: int, lesson_id: int, statu
     db.refresh(new_student_lesson)
 
 
-def confirm_student_test_db(db: Session, student_lesson: StudentLessonOrm, score: int, attempt: int):
+def confirm_student_practical_db(db: Session, student_lesson: StudentLessonOrm, score: int, attempt: int):
     student_lesson.score = score
     student_lesson.attempt = attempt
     student_lesson.status = LessonStatus.completed.value
