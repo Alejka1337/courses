@@ -24,18 +24,43 @@ http_bearer = HTTPBearer(auto_error=False)
 
 app = FastAPI(debug=True, default_response_class=ORJSONResponse)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-app.include_router(user_router, prefix=API_PREFIX, tags=["User"], dependencies=[Depends(http_bearer)])
-app.include_router(notification_router, prefix=API_PREFIX, tags=["Notification"])
-app.include_router(category_router, prefix=API_PREFIX, tags=["Category"])
-app.include_router(course_router, prefix=API_PREFIX, tags=["Course"])
-app.include_router(lesson_router, prefix=API_PREFIX, tags=["Lesson"])
-app.include_router(lecture_router, prefix=API_PREFIX, tags=["Lecture"])
-app.include_router(test_router, prefix=API_PREFIX, tags=["Test"])
-app.include_router(exam_router, prefix=API_PREFIX, tags=["Exam"])
-app.include_router(student_test_router, prefix=API_PREFIX, tags=["Student Test"])
-app.include_router(student_exam_router, prefix=API_PREFIX, tags=["Student Exam"])
-app.include_router(instruction_router, prefix=API_PREFIX, tags=["Instruction"])
-app.include_router(chat_router, prefix=API_PREFIX, tags=["Chat"])
+
+app.include_router(
+    user_router, prefix=API_PREFIX, tags=["User"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    notification_router, prefix=API_PREFIX, tags=["Notification"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    category_router, prefix=API_PREFIX, tags=["Category"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    course_router, prefix=API_PREFIX, tags=["Course"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    lesson_router, prefix=API_PREFIX, tags=["Lesson"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    lecture_router, prefix=API_PREFIX, tags=["Lecture"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    test_router, prefix=API_PREFIX, tags=["Test"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    exam_router, prefix=API_PREFIX, tags=["Exam"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    student_test_router, prefix=API_PREFIX, tags=["Student Test"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    student_exam_router, prefix=API_PREFIX, tags=["Student Exam"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    instruction_router, prefix=API_PREFIX, tags=["Instruction"], dependencies=[Depends(http_bearer)]
+)
+app.include_router(
+    chat_router, prefix=API_PREFIX, tags=["Chat"], dependencies=[Depends(http_bearer)]
+)
 
 app.add_middleware(
     CORSMiddleware,
