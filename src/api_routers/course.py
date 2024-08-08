@@ -6,7 +6,7 @@ from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_student_course_info, select_student_lesson_info
 from src.enums import StaticFileType, UserType
-from src.models import UserOrm, CourseOrm
+from src.models import UserOrm
 from src.schemas.course import CourseCreate, CourseIconsCreate, CourseIconUpdate, CourseUpdate, CourseUpdateResponse
 from src.session import get_db
 from src.utils.decode_code import decode_access_token

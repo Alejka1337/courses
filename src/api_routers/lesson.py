@@ -4,8 +4,8 @@ from fastapi import APIRouter, Body, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
-from src.crud.lesson import LessonRepository
 from src.crud.course import CourseRepository
+from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_count_student_course_db
 from src.enums import LessonType, StaticFileType, UserType
 from src.models import UserOrm

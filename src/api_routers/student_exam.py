@@ -7,10 +7,9 @@ from src.crud.student_lesson import confirm_student_practical_db, select_student
 from src.models import UserOrm
 from src.schemas.practical import StudentPractical, SubmitStudentPractical
 from src.session import get_db
+from src.utils.assessment_managers import ExamManager
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.assessment_managers import ExamManager
-
 
 router = APIRouter(prefix="/student-exam")
 

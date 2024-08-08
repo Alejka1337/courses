@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.enums import QuestionTypeOption
 from src.models import StudentTestAnswerOrm, StudentTestAttemptsOrm, StudentTestMatchingOrm
-from src.schemas.practical import TestNewAttempt, StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail
+from src.schemas.practical import StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail, TestNewAttempt
 
 
 class StudentTestRepository:

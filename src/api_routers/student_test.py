@@ -7,10 +7,9 @@ from src.crud.student_test import StudentTestRepository
 from src.models import UserOrm
 from src.schemas.practical import StudentPractical, SubmitStudentPractical
 from src.session import get_db
+from src.utils.assessment_managers import TestManager
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
-from src.utils.assessment_managers import TestManager
-
 
 router = APIRouter(prefix="/student-test")
 

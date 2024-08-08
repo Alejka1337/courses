@@ -1,10 +1,10 @@
 import uvicorn
 # from debug_toolbar.middleware import DebugToolbarMiddleware
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import ORJSONResponse
 from fastapi.security import HTTPBearer
+from fastapi.staticfiles import StaticFiles
 
 from src.api_routers.category import router as category_router
 from src.api_routers.chat import router as chat_router

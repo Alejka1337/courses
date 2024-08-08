@@ -1,4 +1,4 @@
-from typing import Any, List, Optional, Union, NamedTuple
+from typing import Any, List, NamedTuple, Optional, Union
 
 from pydantic import BaseModel, PositiveInt
 from typing_extensions import Self
@@ -155,4 +155,3 @@ class TestQuestionResponse(BaseModel):
 
 class QuestionListResponse(BaseModel):
     questions: List[TestQuestionResponse]
-
