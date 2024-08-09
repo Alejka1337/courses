@@ -1,6 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
-from pydantic import BaseModel, PositiveFloat, PositiveInt
+from pydantic import BaseModel, PositiveFloat, PositiveInt, ConfigDict
+
+from src.schemas.lesson import LessonResponse, LessonDetailResponse, LessonAuthResponse
 
 
 class CourseIconCreate(BaseModel):
@@ -10,11 +12,16 @@ class CourseIconCreate(BaseModel):
     icon_title: str
 
 
+class IconResponse(CourseIconCreate):
+    id: PositiveInt
+    course_id: PositiveInt
+
+
 class CourseIconUpdate(BaseModel):
-    icon_path: Optional[str]
-    icon_number: Optional[PositiveInt]
-    icon_text: Optional[str]
-    icon_title: Optional[str]
+    icon_path: Optional[str] = None
+    icon_number: Optional[PositiveInt] = None
+    icon_text: Optional[str] = None
+    icon_title: Optional[str] = None
 
 
 class CourseIconsCreate(BaseModel):
@@ -23,19 +30,19 @@ class CourseIconsCreate(BaseModel):
 
 class CourseCreate(BaseModel):
     title: str
-    image_path: Optional[str]
+    image_path: Optional[str] = None
     price: PositiveFloat
-    old_price: Optional[PositiveFloat]
+    old_price: Optional[PositiveFloat] = None
     category_id: PositiveInt
     intro_text: str
     skills_text: str
     about_text: str
-    c_type: Optional[str]
-    c_duration: Optional[str]
-    c_award: Optional[str]
-    c_language: Optional[str]
-    c_level: Optional[str]
-    c_access: Optional[str]
+    c_type: Optional[str] = None
+    c_duration: Optional[str] = None
+    c_award: Optional[str] = None
+    c_language: Optional[str] = None
+    c_level: Optional[str] = None
+    c_access: Optional[str] = None
 
 
 class CourseUpdate(BaseModel):
@@ -55,12 +62,13 @@ class CourseUpdate(BaseModel):
     c_access: Optional[str] = None
 
 
-class CourseUpdateResponse(BaseModel):
+class CourseResponse(BaseModel):
+    id: PositiveInt
     title: str
-    image_path: str
+    image_path: Optional[str] = None
     price: float
     old_price: Optional[float] = None
-    category_id: int
+    category_id: PositiveInt
     intro_text: str
     skills_text: str
     about_text: str
@@ -70,9 +78,36 @@ class CourseUpdateResponse(BaseModel):
     c_language: str
     c_level: str
     c_access: str
-    quantity_lecture: Optional[int] = None
-    quantity_test: Optional[int] = None
+    quantity_lecture: Optional[PositiveInt] = None
+    quantity_test: Optional[PositiveInt] = None
     is_published: bool
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DeleteCourseResponse(BaseModel):
+    message: str = "Course has been deleted"
+
+
+class ImageUploadedResponse(BaseModel):
+    image_path: str
+
+
+class IconUploadedResponse(BaseModel):
+    icon_path: str
+
+
+class AttachedIconResponse(BaseModel):
+    message: str = "Successful attached"
+
+
+class PublishCourseResponse(BaseModel):
+    message: str
+    result: bool
+
+
+class CourseDetailResponse(CourseResponse):
+    icons: List[IconResponse]
+    lessons: List[Union[LessonResponse, LessonDetailResponse, LessonAuthResponse]]
+
+    model_config = ConfigDict(from_attributes=True)
