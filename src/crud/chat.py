@@ -107,7 +107,7 @@ def select_recipient_id(db: Session, chat_id: int):
     res = (db.query(ChatMessageOrm)
            .filter(ChatMessageOrm.chat_id == chat_id,
                    ChatMessageOrm.recipient_type == MessageSenderType.admin.value,
-                   ChatMessageOrm.recipient_id is not None)
+                   ChatMessageOrm.recipient_id.is_(not None))
            .first())
     return res.recipient_id
 
@@ -125,6 +125,29 @@ def select_last_message_db(db: Session, message_id: int):
             .filter(ChatMessageOrm.id == message_id)
             .options(joinedload(ChatMessageOrm.files))
             .first())
+
+
+def select_chats_for_moderator(db: Session, user_id: int):
+    common_chats = (db.query(ChatOrm)
+                    .filter(ChatOrm.status.in_([ChatStatusType.new.value, ChatStatusType.archive.value]))
+                    .all())
+
+    personal_chats = (db.query(ChatOrm)
+                      .join(ChatMessageOrm, ChatMessageOrm.chat_id == ChatOrm.id)
+                      .filter(ChatMessageOrm.recipient_id == user_id)
+                      .filter(ChatOrm.status == ChatStatusType.active)
+                      .all())
+
+    return common_chats + personal_chats
+
+
+def check_active_chat(db: Session, user_id: int):
+    result = (db.query(ChatOrm)
+              .join(ChatMessageOrm, ChatMessageOrm.chat_id == ChatOrm.id)
+              .filter(ChatMessageOrm.recipient_id == user_id)
+              .all())
+
+    return False if result else True
 
 
 def update_recipient_db(db: Session, chat_id: int, recipient_id: int):

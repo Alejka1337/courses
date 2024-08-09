@@ -59,7 +59,7 @@ app.include_router(
     instruction_router, prefix=API_PREFIX, tags=["Instruction"], dependencies=[Depends(http_bearer)]
 )
 app.include_router(
-    chat_router, prefix=API_PREFIX, tags=["Chat"], dependencies=[Depends(http_bearer)]
+    chat_router, prefix=API_PREFIX, tags=["Chat"]
 )
 
 app.add_middleware(
