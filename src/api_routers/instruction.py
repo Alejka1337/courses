@@ -1,10 +1,13 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from src.crud.instruction import InstructionRepository
 from src.enums import StaticFileType, UserType
 from src.models import UserOrm
-from src.schemas.instruction import InstructionCreate, InstructionUpdate
+from src.schemas.instruction import (InstructionCreate, InstructionUpdate, InstructionFileBase, InstructionResponse,
+                                     InstructionDetailResponse, InstructionDeleteResponse)
 from src.session import get_db
 from src.utils.exceptions import InstructionNotFoundException, PermissionDeniedException
 from src.utils.get_user import get_current_user
@@ -13,30 +16,30 @@ from src.utils.save_files import save_file
 router = APIRouter(prefix="/instruction")
 
 
-@router.post("/upload")
+@router.post("/upload", response_model=InstructionFileBase)
 async def upload_instruction_file(
         file: UploadFile = File(...),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         file_path = save_file(file=file, file_type=StaticFileType.instruction_file.value)
-        return {
-            "file_path": file_path,
-            "file_size": file.size,
-            "file_name": file.filename,
-            "file_type": file.filename.split(".")[-1]
-        }
+        return InstructionFileBase(
+            file_path=file_path,
+            file_size=file.size,
+            file_name=file.filename,
+            file_type=file.filename.split(".")[-1]
+        )
     else:
         raise PermissionDeniedException()
 
 
-@router.post("/create")
+@router.post("/create", response_model=InstructionResponse)
 async def create_instruction(
         data: InstructionCreate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = InstructionRepository(db=db)
         instruction = repository.create_instruction(data=data)
 
@@ -49,38 +52,48 @@ async def create_instruction(
         raise PermissionDeniedException()
 
 
-@router.get("/general")
+@router.get("/general", response_model=List[InstructionDetailResponse])
 async def get_general_instruction(db: Session = Depends(get_db)):
     repository = InstructionRepository(db=db)
-    return repository.select_general_instruction()
+    result = repository.select_general_instruction()
+    if not result:
+        raise InstructionNotFoundException()
+    return result
 
 
-@router.get("/courses")
+@router.get("/courses", response_model=list[InstructionDetailResponse])
 async def get_courses_instruction(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
+
 ):
-    if user.usertype == UserType.student.value:
-        repository = InstructionRepository(db=db)
+    repository = InstructionRepository(db=db)
+    if user.is_student:
         categories = set()
         courses = user.student.courses
         for course in courses:
             categories.add(course.category_id)
 
-        return repository.select_course_instruction(categories=list(categories))
+        result = repository.select_course_instruction_for_student(categories=categories)
+        if not result:
+            raise InstructionNotFoundException()
+        return result
 
     else:
-        raise InstructionNotFoundException()
+        result = repository.select_course_instruction_for_admin()
+        if not result:
+            raise InstructionNotFoundException()
+        return result
 
 
-@router.put("/update/{instruction_id}")
+@router.put("/update/{instruction_id}", response_model=InstructionResponse)
 async def update_instruction(
         data: InstructionUpdate,
         instruction_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = InstructionRepository(db=db)
         instruction = repository.update_instruction(instruction_id=instruction_id, data=data)
 
@@ -95,7 +108,7 @@ async def update_instruction(
         raise PermissionDeniedException()
 
 
-@router.delete("/delete/{instruction_id}")
+@router.delete("/delete/{instruction_id}", response_model=InstructionDeleteResponse)
 async def delete_instruction(
         instruction_id: int,
         db: Session = Depends(get_db),
@@ -104,7 +117,7 @@ async def delete_instruction(
     if user.usertype == UserType.moder.value:
         repository = InstructionRepository(db=db)
         repository.delete_instruction(instruction_id=instruction_id)
-        return {"message": "Instruction successfully deleted"}
+        return InstructionDeleteResponse()
 
     else:
         raise InstructionNotFoundException()

@@ -1,11 +1,13 @@
-from typing import List, Optional
+from datetime import date
 
-from pydantic import BaseModel, PositiveInt
+from typing import List, Optional, Any
+
+from pydantic import BaseModel, PositiveInt, ConfigDict
 
 from src.enums import InstructionType
 
 
-class InstructionFilesBase(BaseModel):
+class InstructionFileBase(BaseModel):
     file_type: str
     file_name: str
     file_path: str
@@ -17,8 +19,8 @@ class InstructionCreate(BaseModel):
     type: InstructionType
     title: str
     text: str
-    category_id: Optional[int] = None
-    files: Optional[List[InstructionFilesBase]] = None
+    category_id: Optional[PositiveInt] = None
+    files: Optional[List[InstructionFileBase]] = None
 
 
 class InstructionUpdate(BaseModel):
@@ -26,4 +28,31 @@ class InstructionUpdate(BaseModel):
     title: Optional[str] = None
     text: Optional[str] = None
     category_id: Optional[PositiveInt] = None
-    files: Optional[List[InstructionFilesBase]] = None
+    files: Optional[List[InstructionFileBase]] = None
+
+
+class InstructionResponse(InstructionCreate):
+    id: PositiveInt
+    last_update: date
+
+    model_config = ConfigDict(from_attributes=True)
+
+    def model_dump(self, **kwargs) -> dict[str, Any]:
+        return super().model_dump(**kwargs, exclude={"files"}, exclude_none=True)
+
+
+class InstructionFileDetail(InstructionFileBase):
+    id: PositiveInt
+    instruction_id: PositiveInt
+
+
+class InstructionDetailResponse(InstructionCreate):
+    id: PositiveInt
+    last_update: date
+    files: List[InstructionFileDetail]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InstructionDeleteResponse(BaseModel):
+    message: str = "Instruction successfully deleted"

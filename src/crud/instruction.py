@@ -1,11 +1,15 @@
+from typing import Union, List, TypeVar, Type
 from datetime import date
 
 from sqlalchemy.orm import Session, joinedload
 
 from src.enums import InstructionType
 from src.models import InstructionFilesOrm, InstructionOrm
-from src.schemas.instruction import InstructionCreate, InstructionFilesBase, InstructionUpdate
+from src.schemas.instruction import InstructionCreate, InstructionFileBase, InstructionUpdate
 from src.utils.save_files import delete_file
+
+
+T = TypeVar("T", bound=InstructionOrm)
 
 
 class InstructionRepository:
@@ -14,7 +18,7 @@ class InstructionRepository:
         self.model = InstructionOrm
         self.file_model = InstructionFilesOrm
 
-    def create_instruction(self, data: InstructionCreate):
+    def create_instruction(self, data: InstructionCreate) -> InstructionOrm:
         new_instruction = self.model(
             name=data.name,
             type=data.type,
@@ -28,7 +32,7 @@ class InstructionRepository:
         self.db.refresh(new_instruction)
         return new_instruction
 
-    def create_instruction_file(self, data: InstructionFilesBase, instruction_id: int):
+    def create_instruction_file(self, data: InstructionFileBase, instruction_id: int) -> None:
         new_file = self.file_model(
             instruction_id=instruction_id,
             file_type=data.file_type,
@@ -38,22 +42,27 @@ class InstructionRepository:
         )
         self.db.add(new_file)
         self.db.commit()
-        self.db.refresh(new_file)
 
-    def select_general_instruction(self):
+    def select_general_instruction(self) -> Union[List[Type[T]], None]:
         return (self.db.query(self.model)
                 .filter(self.model.type == InstructionType.general.value)
                 .options(joinedload(self.model.files))
                 .all())
 
-    def select_course_instruction(self, categories: list):
+    def select_course_instruction_for_student(self, categories: set = None) -> Union[List[Type[T]], None]:
         return (self.db.query(self.model)
                 .filter(self.model.type == InstructionType.course.value)
                 .filter(self.model.category_id.in_(categories))
                 .options(joinedload(self.model.files))
                 .all())
 
-    def update_instruction(self, instruction_id: int, data: InstructionUpdate):
+    def select_course_instruction_for_admin(self) -> Union[List[Type[T]], None]:
+        return (self.db.query(self.model)
+                .filter(self.model.type == InstructionType.course.value)
+                .options(joinedload(self.model.files))
+                .all())
+
+    def update_instruction(self, instruction_id: int, data: InstructionUpdate) -> Type[T]:
         instruction = self.db.query(self.model).filter(self.model.id == instruction_id).first()
 
         if instruction:
@@ -65,7 +74,7 @@ class InstructionRepository:
         self.db.refresh(instruction)
         return instruction
 
-    def delete_instruction(self, instruction_id: int):
+    def delete_instruction(self, instruction_id: int) -> None:
         instruction = (self.db.query(self.model)
                        .filter(self.model.id == instruction_id)
                        .options(joinedload(self.model.files))
@@ -77,7 +86,7 @@ class InstructionRepository:
         self.db.delete(instruction)
         self.db.commit()
 
-    def delete_instruction_files(self, instruction_id: int):
+    def delete_instruction_files(self, instruction_id: int) -> None:
         files = self.db.query(self.file_model).filter(self.file_model.instruction_id == instruction_id).all()
         for file in files:
             delete_file(file.file_path)
