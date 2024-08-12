@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, PositiveInt, ConfigDict
 
 
 class CategoryCreate(BaseModel):
@@ -16,9 +16,16 @@ class CategoryUpdate(BaseModel):
     discount: Optional[PositiveInt]
 
 
-class CategoryOut(BaseModel):
-    id: int
-    title: str
-    description: str
-    image_path: str = None
+class CategoryResponse(CategoryCreate):
+    id: PositiveInt
     discount: PositiveInt
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryImagePathResponse(BaseModel):
+    newPath: str
+
+
+class CategoryDeleteResponse(BaseModel):
+    message: str = "Category have been deleted"
