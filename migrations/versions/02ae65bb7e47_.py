@@ -267,7 +267,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_lectures_id'), 'lectures', ['id'], unique=False)
     op.create_table('student_lessons',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.Enum('completed', 'active', 'blocked', 'new', name='lessonstatus'), nullable=False),
+    sa.Column('status', sa.Enum('completed', 'active', 'blocked', 'new', 'available', name='lessonstatus'), nullable=False),
     sa.Column('score', sa.Integer(), nullable=True),
     sa.Column('attempt', sa.Integer(), nullable=True),
     sa.Column('lesson_id', sa.Integer(), nullable=False),

@@ -1,9 +1,14 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, PositiveInt
+from pydantic import BaseModel, PositiveInt, ConfigDict
 
 from src.enums import UserType
+
+
+class UserAdmin(BaseModel):
+    username: str
+    password: str
 
 
 class UserRegistration(BaseModel):
@@ -14,6 +19,10 @@ class UserRegistration(BaseModel):
     password: str
     phone: Optional[str] = None
     country: Optional[str] = None
+
+
+class UserRegistrationResponse(BaseModel):
+    message: str = "Successful registration. We have sent a confirmation code to your email"
 
 
 class UserUpdate(BaseModel):
@@ -68,7 +77,8 @@ class StudentCreateViaGoogle(BaseModel):
     name: str
     surname: str
     email: str
-    image_path: str
+    phone: Optional[str] = None
+    country: Optional[str] = None
 
 
 class StudentCreate(BaseModel):

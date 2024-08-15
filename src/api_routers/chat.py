@@ -168,8 +168,8 @@ async def user_chat(
         if chat.status == ChatStatusType.new.value:
             update_recipient_db(db=db, chat_id=chat_id, recipient_id=user.id)
             update_chat_status_db(db=db, chat_id=chat_id, status=ChatStatusType.active.value)
-            message = {"type": "manager joined"}
-            await chat_manager.send_message(message=message, chat_id=chat_id, recipient="student")
+            # message = {"type": "manager joined"}
+            # await chat_manager.send_message(message=message, chat_id=chat_id, recipient="student")
 
         moder_connection = chat_manager.create_moder_connection(websocket=websocket, user_id=user.id)
         chat_manager.add_connection(chat_id=chat_id, user_connection=moder_connection)

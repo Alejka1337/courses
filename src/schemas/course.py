@@ -1,6 +1,7 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Literal, Any
 
 from pydantic import BaseModel, PositiveFloat, PositiveInt, ConfigDict
+from pydantic.main import IncEx
 
 from src.schemas.lesson import LessonResponse, LessonDetailResponse, LessonAuthResponse
 
@@ -110,4 +111,11 @@ class CourseDetailResponse(CourseResponse):
     icons: List[IconResponse]
     lessons: List[Union[LessonResponse, LessonDetailResponse, LessonAuthResponse]]
 
+    bought: Optional[bool] = None
+    grade: Optional[int] = None
+    progress: Optional[int] = None
+
     model_config = ConfigDict(from_attributes=True)
+
+    def model_dump(self, *args, **kwargs):
+        return super().model_dump(exclude_none=True)

@@ -110,8 +110,8 @@ class ExamRepository:
         return exam
 
     def select_sum_questions_score(self, exam_id: int):
-        return (self.db.query(func.sum(self.exam_model.q_score))
-                .filter(self.exam_model.exam_id == exam_id)
+        return (self.db.query(func.sum(self.question_model.q_score))
+                .filter(self.question_model.exam_id == exam_id)
                 .scalar())
 
     def select_correct_answer(self, question_id: int) -> int:

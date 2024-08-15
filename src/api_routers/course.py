@@ -12,7 +12,7 @@ from src.schemas.course import (CourseCreate, CourseIconsCreate, CourseIconUpdat
                                 AttachedIconResponse, IconResponse, PublishCourseResponse)
 from src.session import get_db
 from src.utils.decode_code import decode_access_token
-from src.utils.exceptions import PermissionDeniedException
+from src.utils.exceptions import PermissionDeniedException, CourseNotFoundException
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_file
 
@@ -111,6 +111,9 @@ async def get_course(
         user = decode_access_token(db=db, access_token=authorization[7:])
 
         course = repository.select_course_by_id(course_id=course_id)
+        if course is None:
+            CourseNotFoundException()
+
         select_student_course_info(db=db, course=course, student_id=user.student.id)
         select_student_lesson_info(db=db, course=course, student_id=user.student.id)
         return course

@@ -1,20 +1,22 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Request, UploadFile, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.category import CategoryRepository
+from src.crud.chat import select_chats_for_moderator
 from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import subscribe_student_to_course_db
 from src.crud.user import UserRepository
-from src.enums import StaticFileType, UserType
+from src.enums import StaticFileType
 from src.models import UserOrm
 from src.schemas.user import (AuthResponse, BuyCourse, LoginWithGoogle, ResetPassword, SetNewPassword, StudentCreate,
-                              StudentCreateViaGoogle, UserActivate, UsernameUpdate, UserRegistration, UserUpdate)
+                              StudentCreateViaGoogle, UserActivate, UsernameUpdate, UserRegistration, UserUpdate,
+                              UserRegistrationResponse, UserAdmin)
 from src.session import get_db
 from src.utils.decode_code import decode_and_check_refresh_token, decode_google_token
 from src.utils.exceptions import (CookieNotFoundException, EmailDoesExistException, EmailNotFoundException,
@@ -31,7 +33,42 @@ from src.utils.token import create_access_token, create_refresh_token
 router = APIRouter(prefix="/user")
 
 
-@router.post("/create")
+@router.post("/crate-admin")
+async def create_admin(
+        form_data: UserAdmin,
+        db: Session = Depends(get_db)
+):
+    user_repository = UserRepository(db=db)
+    user = user_repository.create_admin(password=form_data.password, username=form_data.username)
+
+    token_data = {"sub": user.username}
+    access_token, access_token_expire = create_access_token(data=token_data)
+    refresh_token, refresh_token_expire = create_refresh_token(data=token_data)
+
+    response_data = AuthResponse(
+        access_token=access_token,
+        access_token_expire=access_token_expire,
+        user_id=user.id,
+        username=user.username,
+        user_type=user.usertype,
+        refresh_token=refresh_token,
+        refresh_token_expire=refresh_token_expire,
+        message="Success login"
+    )
+
+    response = after_auth_response(response_data=response_data)
+
+    celery_tasks.update_user_token_after_login.delay(
+        user_id=user.id,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        exp_token=access_token_expire
+    )
+
+    return response
+
+
+@router.post("/create", status_code=status.HTTP_201_CREATED, response_model=UserRegistrationResponse)
 async def create_user(
         form_data: UserRegistration,
         db: Session = Depends(get_db)
@@ -47,9 +84,8 @@ async def create_user(
         raise UsernameDoesExistException(form_data.username)
 
     new_user = user_repository.create_new_user(username=form_data.username, password=form_data.password)
-
     student_data = StudentCreate(
-        user_id=user.id,
+        user_id=new_user.id,
         name=form_data.name,
         surname=form_data.surname,
         phone=form_data.phone,
@@ -60,10 +96,7 @@ async def create_user(
 
     celery_tasks.send_activate_code.delay(user_id=new_user.id, email=form_data.email)
 
-    return JSONResponse(
-        content={"message": "Successful registration. We have sent a confirmation code to your email"},
-        status_code=201
-    )
+    return UserRegistrationResponse()
 
 
 @router.post("/login")
@@ -332,10 +365,10 @@ async def login_with_google(
             name=decoded_data["given_name"],
             surname=decoded_data["family_name"],
             email=decoded_data["email"],
-            image_path=decoded_data["picture"]
         )
 
         user_repository.create_new_student_google(student_data)
+        user_repository.create_student_image_db(user_id=user.id, image_path=decoded_data["picture"])
 
         response_data = AuthResponse(
             access_token=access_token,
@@ -454,7 +487,7 @@ async def update_studying_time(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         user_repository = UserRepository(db=db)
         user_repository.update_student_studying_time(time=time, user_id=user.id)
         return {"message": "Success"}
@@ -468,7 +501,7 @@ async def buy_course(
         user: UserOrm = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         student_course = subscribe_student_to_course_db(db=db, student_id=user.student.id, course_id=data.course_id)
         celery_tasks.create_student_lesson.delay(student_id=user.student.id, course_id=data.course_id)
         return student_course
@@ -481,7 +514,7 @@ async def info_me(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         user_repository = UserRepository(db=db)
         student, image, courses = user_repository.select_user_dashboard_info(user_id=user.id)
         response = set_info_me(user=user, student=student, image=image, courses=courses)
@@ -492,7 +525,7 @@ async def info_me(
             "user_id": user.id,
             "user_type": user.usertype,
             "username": user.username,
-            "chats": []
+            "chats": select_chats_for_moderator(db=db, user_id=user.id)
         }
 
 

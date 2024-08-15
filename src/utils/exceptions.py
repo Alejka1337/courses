@@ -20,6 +20,16 @@ class UserNotFoundException(HTTPException):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
 
+class CategoryNotFoundException(HTTPException):
+    def __init__(self):
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+
+
+class CourseNotFoundException(HTTPException):
+    def __init__(self):
+        super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+
+
 class InstructionNotFoundException(HTTPException):
     def __init__(self):
         super().__init__(status_code=status.HTTP_404_NOT_FOUND, detail="Instruction not found")

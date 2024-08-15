@@ -181,8 +181,8 @@ class CeleryTasks:
         delete_files_in_directory(folder, "all")
 
         result = text_to_speach(text=lecture_text, lecture_id=lecture_id)
-        audio_list = [value for value in result.values()]
-        repository.update_lecture_audio(lecture_id=lecture_id, audios=audio_list)
+        # audio_list = [value for value in result.values()]
+        repository.update_lecture_audio(lecture_id=lecture_id, audios=result)
         delete_files_in_directory(folder, "mp3")
 
     @celery_app.task(bind=True, base=DatabaseTask)
@@ -236,15 +236,16 @@ class CeleryTasks:
     @celery_app.task(bind=True, base=DatabaseTask)
     def check_correct_score(self, course_id: int):
         exam_rep = ExamRepository(db=self.db)
-        exam = exam_rep.select_exam_score(course_id=course_id)
-
         test_repo = TestRepository(db=self.db)
+
+        exam = exam_rep.select_exam_score(course_id=course_id)
         tests_scores = test_repo.select_tests_scores(course_id=course_id)
 
-        if exam.score + tests_scores > 200:
-            diff = 200 - (exam.score + tests_scores)
-            new_exam_score = exam.score - abs(diff)
-            exam_rep.update_exam_config(exam_id=exam.id, data=ExamConfigUpdate(score=new_exam_score))
+        if exam is not None:
+            if exam.score + tests_scores > 200:
+                diff = 200 - (exam.score + tests_scores)
+                new_exam_score = exam.score - abs(diff)
+                exam_rep.update_exam_config(exam_id=exam.id, data=ExamConfigUpdate(score=new_exam_score))
 
     @celery_app.task(bind=True, base=DatabaseTask)
     def update_user_token_after_login(self, user_id: int, access_token: str, refresh_token: str, exp_token: datetime):

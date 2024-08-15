@@ -57,19 +57,16 @@ def select_count_student_course_db(db: Session, course_id: int):
 def update_course_present(db: Session, student_course: StudentCourseAssociation, progress: int):
     student_course.progress = progress
     db.commit()
-    db.refresh(student_course)
 
 
 def update_course_score(db: Session, student_course: StudentCourseAssociation, score: int):
     student_course.grade += score
     db.commit()
-    db.refresh(student_course)
 
 
 def update_course_status(db: Session, student_course: StudentCourseAssociation):
     student_course.status = CourseStatus.completed.value
     db.commit()
-    db.refresh(student_course)
 
 
 def select_students_whose_bought_courses(db: Session, course_id: int):

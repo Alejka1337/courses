@@ -116,6 +116,9 @@ class LessonRepository:
         tests_score = self.test_repo.select_test_sum_scores(course_id=course_id)
         exam_orm = self.exam_repo.select_exam_score(course_id=course_id)
 
+        if exam_orm is None:
+            return {"result": False, "message": "Create exam before publishing course"}
+
         if tests_score + exam_orm.score != 200:
             return {"result": False, "message": "Course max score less than 200"}
 

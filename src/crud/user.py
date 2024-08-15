@@ -21,6 +21,19 @@ class UserRepository:
         self.reset_code_model = ResetPasswordLinkOrm
         self.course_model = StudentCourseAssociation
 
+    def create_admin(self, password: str, username: str):
+        hashed_pass = hash_password(password)
+        new_user = self.model(
+            usertype=UserType.moder,
+            username=username,
+            hashed_pass=hashed_pass,
+            is_active=True
+        )
+        self.db.add(new_user)
+        self.db.commit()
+        self.db.refresh(new_user)
+        return new_user
+
     def create_new_user(self, password: str, username: str):
         hashed_pass = hash_password(password)
         new_user = self.model(
@@ -234,22 +247,14 @@ class UserRepository:
         self.db.refresh(student)
 
     def select_user_dashboard_info(self, user_id: int):
-        res = (self.db.query(self.student_model, self.image_model, self.course_model)
-               .options(joinedload(self.student_model.chats))
-               .join(self.course_model, self.course_model.student_id == self.student_model.id)
-               .filter(self.student_model.user_id == user_id)
-               .filter(self.image_model.user_id == user_id, self.image_model.is_main)
-               .all())
 
-        student = None
-        image = None
-        courses = set()
+        student = (self.db.query(self.student_model)
+                   .options(joinedload(self.student_model.chats))
+                   .filter(self.student_model.user_id == user_id)
+                   .first())
 
-        for student_orm, image_orm, course_orm in res:
-            if student is None:
-                student = student_orm
-            if image is None:
-                image = image_orm
-            courses.add(course_orm)
+        image = self.select_student_image_db(user_id=user_id)
+
+        courses = (self.db.query(self.course_model).filter(self.course_model.student_id == student.id).all())
 
         return student, image, courses
