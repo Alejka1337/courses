@@ -92,8 +92,8 @@ class ExamRepository:
         self.db.add(left_option)
         self.db.commit()
 
-        self.db.refresh(right_option)
-        self.db.refresh(left_option)
+        # self.db.refresh(right_option)
+        # self.db.refresh(left_option)
 
     def select_question(self, question_id: int):
         return self.db.query(self.question_model).filter(self.question_model.id == question_id).first()
@@ -143,6 +143,9 @@ class ExamRepository:
 
     def select_exam_id(self, lesson_id: int):
         return self.db.query(self.exam_model.id).filter(self.exam_model.lesson_id == lesson_id).scalar()
+
+    def select_count_attempt(self, lesson_id: int):
+        return self.db.query(self.exam_model.attempts).filter(self.exam_model.lesson_id == lesson_id).scalar()
 
     def select_quantity_question(self, lesson_id: int):
         quantity_question = (
@@ -260,7 +263,7 @@ class ExamRepository:
         self.db.refresh(question)
 
     def delete_question(self, question_id: int):
-        question = self.select_exam_question(question_id=question_id)
+        question = self.select_question(question_id=question_id)
 
         if question.q_type == QuestionTypeOption.matching:
             match_left = (self.db.query(self.matching_left_model)

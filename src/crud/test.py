@@ -140,6 +140,9 @@ class TestRepository:
     def select_test_id(self, lesson_id: int) -> int:
         return self.db.query(self.model.id).filter(self.model.lesson_id == lesson_id).scalar()
 
+    def select_count_attempt(self, lesson_id: int):
+        return self.db.query(self.model.attempts).filter(self.model.lesson_id == lesson_id).scalar()
+
     def select_tests_scores(self, course_id: int) -> int:
         lesson_ids = (self.db.query(self.lesson_model.id.label("id"))
                       .filter(self.lesson_model.course_id == course_id,
@@ -199,7 +202,7 @@ class TestRepository:
         self.db.commit()
 
     def delete_question(self, question_id: int) -> None:
-        question = self.select_test_question(question_id=question_id)
+        question = self.select_question(question_id=question_id)
 
         if question.q_type == QuestionTypeOption.matching:
             match_left = (self.db.query(self.matching_left_model)

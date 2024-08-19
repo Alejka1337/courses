@@ -3,9 +3,9 @@ from typing import List, Optional, Union
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from src.enums import QuestionTypeOption
 from src.models import StudentExamAnswerOrm, StudentExamAttemptsOrm, StudentExamMatchingOrm
 from src.schemas.practical import ExamNewAttempt, StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail
+from src.utils.serialize_attempt import serialize_attempt_data
 
 
 class StudentExamRepository:
@@ -15,18 +15,19 @@ class StudentExamRepository:
         self.answer_model = StudentExamAnswerOrm
         self.matching_model = StudentExamMatchingOrm
 
-    def create_attempt(self, attempt_detail: ExamNewAttempt) -> StudentExamAttemptsOrm:
-        new_attempt = self.attempt_model(**attempt_detail.dict())
+    def create_attempt(self, attempt_data: ExamNewAttempt) -> StudentExamAttemptsOrm:
+        new_attempt = self.attempt_model(**attempt_data.dict())
         self.db.add(new_attempt)
         self.db.commit()
         self.db.refresh(new_attempt)
         return new_attempt
 
-    def update_attempt_score(self, attempt_id: int, score: int) -> None:
-        self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).update(
-            {self.attempt_model.attempt_score: score}, synchronize_session=False)
-
+    def update_attempt_score(self, attempt_id: int, score: int) -> StudentExamAttemptsOrm:
+        attempt = self.select_attempt_by_id(attempt_id=attempt_id)
+        attempt.attempt_score = score
         self.db.commit()
+        self.db.refresh(attempt)
+        return attempt
 
     def select_student_attempts(self, exam_id: int, student_id: int) -> Union[List[StudentExamAttemptsOrm], None]:
         res = (self.db.query(self.attempt_model)
@@ -36,16 +37,15 @@ class StudentExamRepository:
         return res if res else None
 
     def select_attempt_by_id(self, attempt_id: int) -> Optional[StudentExamAttemptsOrm]:
-        res = self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).first()
-        return res
+        return self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).first()
 
     def select_last_attempt_number(self, exam_id: int, student_id: int) -> Optional[int]:
-        res = (self.db.query(self.attempt_model.attempt_number)
+        res = (self.db.query(self.attempt_model)
                .filter(self.attempt_model.student_id == student_id)
                .filter(self.attempt_model.exam_id == exam_id)
                .order_by(desc(self.attempt_model.attempt_number))
-               .scalar())
-        return res
+               .first())
+        return res.attempt_number if res else None
 
     def create_student_answer(self, answer_data: StudentAnswerDetail) -> None:
         new_answer = self.answer_model(**answer_data.dict())
@@ -65,31 +65,4 @@ class StudentExamRepository:
     def select_student_exam_answers(self, attempt_id: int) -> list:
         answers = self.db.query(self.answer_model).filter(self.answer_model.student_attempt_id == attempt_id).all()
         matching = self.db.query(self.matching_model).filter(self.matching_model.student_attempt_id == attempt_id).all()
-
-        result = []
-        for answer in answers:
-            if answer.question_type == QuestionTypeOption.multiple_choice:
-                data = {
-                    "q_id": answer.question_id,
-                    "q_type": answer.question_type,
-                    "answers": answer.answer_ids
-                }
-                result.append(data)
-            else:
-                data = {
-                    "q_id": answer.question_id,
-                    "q_type": answer.question_type,
-                    "answer": answer.answer_id
-                }
-                result.append(data)
-
-        for match in matching:
-            data = {
-                "q_id": match.question_id,
-                "q_type": match.question_type,
-                "left_id": match.left_id,
-                "right_id": match.right_id
-            }
-            result.append(data)
-
-        return result
+        return serialize_attempt_data(answers=answers, matching=matching)

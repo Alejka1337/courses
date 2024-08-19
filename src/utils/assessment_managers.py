@@ -5,9 +5,19 @@ from src.crud.student_exam import StudentExamRepository
 from src.crud.student_test import StudentTestRepository
 from src.crud.test import TestRepository
 from src.enums import QuestionTypeOption
-from src.schemas.practical import (ExamNewAttempt, StudentAnswer, StudentAnswerDetail, StudentAnswers,
-                                   StudentAnswersDetail, StudentMatchingDetail, StudentMatchingList, StudentPractical,
-                                   TestNewAttempt)
+from src.models import StudentExamAttemptsOrm, StudentTestAttemptsOrm
+from src.utils.exceptions import MaxAttemptException
+from src.schemas.practical import (
+    ExamNewAttempt,
+    StudentAnswer,
+    StudentAnswerDetail,
+    StudentAnswers,
+    StudentAnswersDetail,
+    StudentMatchingDetail,
+    StudentMatchingList,
+    StudentPractical,
+    TestNewAttempt
+)
 
 
 class AssessmentManager:
@@ -54,10 +64,10 @@ class AssessmentManager:
         new_attempt = self.student_repository.create_attempt(attempt_data=format_data)
         return new_attempt.id
 
-    def update_attempt_score(self, attempt_id: int) -> None:
-        self.student_repository.update_attempt_score(attempt_id=attempt_id, score=self._final_score)
+    def update_attempt_score(self, attempt_id: int):
+        raise NotImplementedError("This method should be implemented in subclasses")
 
-    def start_inspect(self) -> int:
+    def start_inspect(self) -> StudentExamAttemptsOrm | StudentTestAttemptsOrm:
         attempt_number = self.get_attempt_number()
         new_attempt_id = self.create_new_attempt(attempt_number)
 
@@ -83,8 +93,8 @@ class AssessmentManager:
                     new_attempt_id=new_attempt_id, question_score=question_score, answer=answer
                 )
 
-        self.update_attempt_score(attempt_id=new_attempt_id)
-        return self._final_score
+        attempt = self.update_attempt_score(attempt_id=new_attempt_id)
+        return attempt
 
     def inspect_match_question(self, q_id: int, student_matching: list) -> int:
         question = self.repository.select_question(question_id=q_id)
@@ -179,6 +189,11 @@ class ExamManager(AssessmentManager):
         )
 
         attempt_number = last_attempt + 1 if last_attempt else 1
+        test_attempt = self.repository.select_count_attempt(lesson_id=self._lesson_id)
+
+        if attempt_number > test_attempt:
+            raise MaxAttemptException()
+
         return attempt_number
 
     def format_attempt_data(self, number: int) -> ExamNewAttempt:
@@ -189,6 +204,9 @@ class ExamManager(AssessmentManager):
             student_id=self._student_id
         )
         return new_attempt_detail
+
+    def update_attempt_score(self, attempt_id: int) -> StudentExamAttemptsOrm:
+        return self.student_repository.update_attempt_score(attempt_id=attempt_id, score=self._final_score)
 
 
 class TestManager(AssessmentManager):
@@ -209,6 +227,11 @@ class TestManager(AssessmentManager):
         )
 
         attempt_number = last_attempt + 1 if last_attempt else 1
+        test_attempt = self.repository.select_count_attempt(lesson_id=self._lesson_id)
+
+        if attempt_number > test_attempt:
+            raise MaxAttemptException()
+
         return attempt_number
 
     def format_attempt_data(self, number: int) -> TestNewAttempt:
@@ -219,3 +242,6 @@ class TestManager(AssessmentManager):
             student_id=self._student_id
         )
         return new_attempt_detail
+
+    def update_attempt_score(self, attempt_id: int) -> StudentTestAttemptsOrm:
+        return self.student_repository.update_attempt_score(attempt_id=attempt_id, score=self._final_score)

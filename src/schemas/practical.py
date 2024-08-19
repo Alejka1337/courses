@@ -1,6 +1,8 @@
 from typing import List, Optional, Union
 
-from pydantic import BaseModel, PositiveInt
+from typing_extensions import Self
+
+from pydantic import BaseModel, PositiveInt, model_validator, ConfigDict
 
 from src.enums import QuestionTypeOption
 
@@ -70,3 +72,33 @@ class StudentAnswersDetail(StudentAnswerBase):
 class StudentMatchingDetail(StudentAnswerBase):
     left_id: PositiveInt
     right_id: PositiveInt
+
+
+class ExamAttemptResponse(ExamNewAttempt):
+    id: PositiveInt
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExamResponse(ExamAttemptResponse):
+    message: str = ""
+
+    @model_validator(mode='after')
+    def set_message(self) -> Self:
+        self.message = f"Your exam score {self.attempt_score}"
+        return self
+
+
+class TestAttemptResponse(TestNewAttempt):
+    id: PositiveInt
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestResponse(TestAttemptResponse):
+    message: str = ""
+
+    @model_validator(mode='after')
+    def set_message(self) -> Self:
+        self.message = f"Your test score {self.attempt_score}"
+        return self

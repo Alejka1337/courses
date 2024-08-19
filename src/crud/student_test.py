@@ -3,9 +3,9 @@ from typing import List, Optional, Union
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from src.enums import QuestionTypeOption
 from src.models import StudentTestAnswerOrm, StudentTestAttemptsOrm, StudentTestMatchingOrm
 from src.schemas.practical import StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail, TestNewAttempt
+from src.utils.serialize_attempt import serialize_attempt_data
 
 
 class StudentTestRepository:
@@ -22,11 +22,15 @@ class StudentTestRepository:
         self.db.refresh(new_attempt)
         return new_attempt
 
-    def update_attempt_score(self, attempt_id: int, score: int) -> None:
-        self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).update(
-            {self.attempt_model.attempt_score: score}, synchronize_session=False)
+    def update_attempt_score(self, attempt_id: int, score: int) -> StudentTestAttemptsOrm:
+        # self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).update(
+        #     {self.attempt_model.attempt_score: score}, synchronize_session=False)
 
+        attempt = self.select_attempt_by_id(attempt_id=attempt_id)
+        attempt.attempt_score = score
         self.db.commit()
+        self.db.refresh(attempt)
+        return attempt
 
     def select_student_attempts(self, test_id: int, student_id: int) -> Union[List[StudentTestAttemptsOrm], None]:
         res = (self.db.query(self.attempt_model)
@@ -36,15 +40,15 @@ class StudentTestRepository:
         return res if res else None
 
     def select_attempt_by_id(self, attempt_id: int) -> Optional[StudentTestAttemptsOrm]:
-        res = self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).first()
-        return res
+        return self.db.query(self.attempt_model).filter(self.attempt_model.id == attempt_id).first()
 
     def select_last_attempt_number(self, test_id: int, student_id: int) -> Optional[int]:
-        return (self.db.query(self.attempt_model.attempt_number)
-                .filter(self.attempt_model.student_id == student_id)
-                .filter(self.attempt_model.test_id == test_id)
-                .order_by(desc(self.attempt_model.attempt_number))
-                .scalar())
+        res = (self.db.query(self.attempt_model)
+               .filter(self.attempt_model.student_id == student_id)
+               .filter(self.attempt_model.test_id == test_id)
+               .order_by(desc(self.attempt_model.attempt_number))
+               .first())
+        return res.attempt_number if res else None
 
     def create_student_answer(self, answer_data: StudentAnswerDetail) -> None:
         student_answer = self.answer_model(**answer_data.dict())
@@ -64,31 +68,5 @@ class StudentTestRepository:
     def select_student_answers(self, attempt_id: int):
         answers = self.db.query(self.answer_model).filter(self.answer_model.student_attempt_id == attempt_id).all()
         matching = self.db.query(self.matching_model).filter(self.matching_model.student_attempt_id == attempt_id).all()
-        result = []
 
-        for answer in answers:
-            if answer.question_type == QuestionTypeOption.multiple_choice:
-                data = {
-                    "q_id": answer.question_id,
-                    "q_type": answer.question_type,
-                    "answers": answer.answer_ids
-                }
-                result.append(data)
-            else:
-                data = {
-                    "q_id": answer.question_id,
-                    "q_type": answer.question_type,
-                    "answer": answer.answer_id
-                }
-                result.append(data)
-
-        for match in matching:
-            data = {
-                "q_id": match.question_id,
-                "q_type": match.question_type,
-                "left_id": match.left_id,
-                "right_id": match.right_id
-            }
-            result.append(data)
-
-        return result
+        return serialize_attempt_data(answers=answers, matching=matching)

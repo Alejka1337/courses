@@ -33,7 +33,7 @@ from src.utils.token import create_access_token, create_refresh_token
 router = APIRouter(prefix="/user")
 
 
-@router.post("/crate-admin")
+@router.post("/create-admin")
 async def create_admin(
         form_data: UserAdmin,
         db: Session = Depends(get_db)

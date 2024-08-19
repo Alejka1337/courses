@@ -115,3 +115,8 @@ class UpdateUsernameException(HTTPException):
 class UpdateEmailException(HTTPException):
     def __init__(self):
         super().__init__(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="This email is already in use")
+
+
+class MaxAttemptException(HTTPException):
+    def __init__(self):
+        super().__init__(status_code=status.HTTP_409_CONFLICT, detail="You have reached the maximum number of attempts")

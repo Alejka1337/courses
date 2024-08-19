@@ -5,7 +5,7 @@ from src.celery import celery_tasks
 from src.crud.student_exam import StudentExamRepository
 from src.crud.student_lesson import confirm_student_practical_db, select_student_lesson_db
 from src.models import UserOrm
-from src.schemas.practical import StudentPractical, SubmitStudentPractical
+from src.schemas.practical import StudentPractical, SubmitStudentPractical, ExamAttemptResponse, ExamResponse
 from src.session import get_db
 from src.utils.assessment_managers import ExamManager
 from src.utils.exceptions import PermissionDeniedException
@@ -14,7 +14,7 @@ from src.utils.get_user import get_current_user
 router = APIRouter(prefix="/student-exam")
 
 
-@router.post("/send")
+@router.post("/send", response_model=ExamResponse)
 async def confirm_student_exam(
         data: StudentPractical,
         db: Session = Depends(get_db),
@@ -22,8 +22,8 @@ async def confirm_student_exam(
 ):
     if user.is_student:
         manager = ExamManager(student_id=user.student.id, data=data, db=db)
-        final_score = manager.start_inspect()
-        return {"message": f"Your exam score {final_score}"}
+        new_attempt = manager.start_inspect()
+        return new_attempt
 
     else:
         raise PermissionDeniedException()
