@@ -1,12 +1,32 @@
 from datetime import date, datetime
 from typing import Annotated, Optional
 
-from sqlalchemy import ARRAY, CheckConstraint, Column, Date, DateTime, ForeignKey, Integer, String
+from sqlalchemy import (
+    ARRAY,
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from src.enums import (ChatStatusType, CourseStatus, InstructionType, LectureAttributeType, LessonStatus, LessonType,
-                       MessageSenderType, NotificationType, QuestionTypeOption, UserType)
+from src.enums import (
+    ChatStatusType,
+    CourseStatus,
+    InstructionType,
+    LectureAttributeType,
+    LessonStatus,
+    LessonTemplateType,
+    LessonType,
+    MessageSenderType,
+    NotificationType,
+    QuestionTypeOption,
+    UserType,
+)
 
 
 class Base(DeclarativeBase):
@@ -303,6 +323,9 @@ class CategoryOrm(Base):
     description: Mapped[Optional[str]]
     image_path: Mapped[Optional[str]]
     discount: Mapped[int] = mapped_column(default=10)
+    is_published: Mapped[bool] = mapped_column(default=False)
+    timestamp_add: Mapped[datetime]
+    timestamp_change: Mapped[datetime]
 
     courses: Mapped[list["CourseOrm"]] = relationship(back_populates="category")
     instruction: Mapped["InstructionOrm"] = relationship(back_populates="category")
@@ -677,6 +700,7 @@ class UserNoteOrm(Base):
 
     id: Mapped[intpk]
     title: Mapped[str]
+    text: Mapped[str]
     folder_id: Mapped[int] = mapped_column(ForeignKey("user_folders.id"))
     lecture_id: Mapped[int] = mapped_column(ForeignKey("lectures.id"))
 
@@ -726,3 +750,110 @@ class MessageFilesOrm(Base):
     message_id: Mapped[int] = mapped_column(ForeignKey("chat_messages.id"))
 
     message: Mapped["ChatMessageOrm"] = relationship(back_populates="files")
+
+
+class LessonTemplateOrm(Base):
+    __tablename__ = "lesson_templates"
+
+    id: Mapped[intpk]
+    title: Mapped[str]
+    type: Mapped[LessonTemplateType]
+
+    lecture_template: Mapped[list["LectureTemplateAttributeOrm"]] = relationship(back_populates="template")
+    practical_template: Mapped[list["PracticalTemplateQuestionOrm"]] = relationship(back_populates="template")
+
+
+class LectureTemplateAttributeOrm(Base):
+    __tablename__ = "lecture_template_attributes"
+
+    id: Mapped[intpk]
+    a_type: Mapped[LectureAttributeType]
+    a_title: Mapped[str]
+    a_number: Mapped[int]
+    a_text: Mapped[Optional[str]]
+    hidden: Mapped[bool] = mapped_column(default=False)
+
+    template_id: Mapped[int] = mapped_column(ForeignKey("lesson_templates.id"))
+
+    template: Mapped["LessonTemplateOrm"] = relationship(back_populates="lecture_template")
+    files: Mapped[list["LectureTemplateFileOrm"]] = relationship(back_populates="lecture_template_attr")
+    links: Mapped[list["LectureTemplateLinkOrm"]] = relationship(back_populates="lecture_template_attr")
+
+
+class LectureTemplateFileOrm(Base):
+    __tablename__ = "lecture_template_files"
+
+    id: Mapped[intpk]
+    filename: Mapped[str]
+    file_path: Mapped[str]
+    file_size: Mapped[int]
+    file_description: Mapped[Optional[str]]
+    download_allowed: Mapped[Optional[bool]] = mapped_column(default=False)
+    lecture_template_attr_id: Mapped[int] = mapped_column(ForeignKey("lecture_template_attributes.id"))
+
+    lecture_template_attr: Mapped["LectureTemplateAttributeOrm"] = relationship(back_populates="files")
+
+
+class LectureTemplateLinkOrm(Base):
+    __tablename__ = "lecture_template_links"
+
+    id: Mapped[intpk]
+    link: Mapped[str]
+    anchor: Mapped[Optional[str]]
+    lecture_template_attr_id: Mapped[int] = mapped_column(ForeignKey("lecture_template_attributes.id"))
+
+    lecture_template_attr: Mapped["LectureTemplateAttributeOrm"] = relationship(back_populates="links")
+
+
+class PracticalTemplateQuestionOrm(Base):
+    __tablename__ = "practical_template_questions"
+
+    id: Mapped[intpk]
+    q_text: Mapped[str]
+    q_number: Mapped[int]
+    q_score: Mapped[int]
+    q_type: Mapped[QuestionTypeOption]
+    hidden: Mapped[bool] = mapped_column(default=False)
+    image_path: Mapped[Optional[str]]
+
+    template_id: Mapped[int] = mapped_column(ForeignKey("lesson_templates.id"))
+
+    template: Mapped["LessonTemplateOrm"] = relationship(back_populates="practical_template")
+    answers: Mapped[list["PracticalTemplateAnswerOrm"]] = relationship(back_populates="practical_question")
+    right_option: Mapped[list["PracticalTemplateMatchingRightOrm"]] = relationship(back_populates="practical_question")
+    left_option: Mapped[list["PracticalTemplateMatchingLeftOrm"]] = relationship(back_populates="practical_question")
+
+
+class PracticalTemplateAnswerOrm(Base):
+    __tablename__ = "practical_template_answers"
+
+    id: Mapped[intpk]
+    a_text: Mapped[str]
+    is_correct: Mapped[bool]
+    image_path: Mapped[Optional[str]]
+    question_id: Mapped[int] = mapped_column(ForeignKey("practical_template_questions.id"))
+
+    practical_question: Mapped["PracticalTemplateQuestionOrm"] = relationship(back_populates="answers")
+
+
+class PracticalTemplateMatchingRightOrm(Base):
+    __tablename__ = "practical_template_matching_right"
+
+    id: Mapped[intpk]
+    text: Mapped[str]
+    question_id: Mapped[int] = mapped_column(ForeignKey("practical_template_questions.id"))
+
+    practical_question: Mapped["PracticalTemplateQuestionOrm"] = relationship(back_populates="right_option")
+    left_option: Mapped["PracticalTemplateMatchingLeftOrm"] = relationship(back_populates="right_option")
+
+
+class PracticalTemplateMatchingLeftOrm(Base):
+    __tablename__ = "practical_template_matching_left"
+
+    id: Mapped[intpk]
+    text: Mapped[str]
+    right_id: Mapped[int] = mapped_column(ForeignKey("practical_template_matching_right.id"))
+    question_id: Mapped[int] = mapped_column(ForeignKey("practical_template_questions.id"))
+
+    practical_question: Mapped["PracticalTemplateQuestionOrm"] = relationship(back_populates="left_option")
+    right_option: Mapped["PracticalTemplateMatchingRightOrm"] = relationship(back_populates="left_option")
