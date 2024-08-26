@@ -7,7 +7,7 @@ from src.celery import celery_tasks
 from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_count_student_course_db
-from src.enums import LessonType, StaticFileType, UserType
+from src.enums import LessonType, StaticFileType
 from src.models import UserOrm
 from src.schemas.lesson import LessonCreate
 from src.session import get_db
@@ -24,7 +24,7 @@ async def create_lesson(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LessonRepository(db=db)
         if repository.check_lesson_number_db(course_id=data.course_id, number=data.number) >= 1:
             repository.update_lesson_number_db(course_id=data.course_id, number=data.number)
@@ -75,7 +75,7 @@ async def upload_lesson_image(
         file: UploadFile = File(...),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         file_path = save_file(file=file, file_type=StaticFileType.lesson_image.value)
         return {"filename": file.filename, "file_path": file_path, "file_size": file.size}
     else:
@@ -89,7 +89,7 @@ async def get_lesson(
         user: UserOrm = Depends(get_current_user)
 ):
     repository = LessonRepository(db=db)
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         return repository.select_lesson_db(lesson_id=lesson_id, student_id=user.student.id)
     else:
         return repository.select_lesson_db(lesson_id=lesson_id)

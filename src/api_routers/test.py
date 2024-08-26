@@ -1,33 +1,44 @@
-from typing import Annotated, List
+from typing import List
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.crud.test import TestRepository
-from src.enums import UserType
 from src.models import UserOrm
-from src.schemas.test import (MatchingResponseAfterAdd, MatchingTuple, QuestionListResponse, TestAnswerAdd,
-                              TestAnswerResponse, TestAnswerUpdate, TestConfigUpdate, TestMatchingAdd,
-                              TestMatchingUpdate, TestQuestionBase, TestQuestionUpdate)
+from src.schemas.practical import (
+    DeleteMessageResponse,
+    MatchingResponseAfterAdd,
+    MatchingTuple,
+    QuestionListResponse,
+    TestAnswerAdd,
+    TestAnswerResponse,
+    TestAnswerUpdate,
+    TestConfigUpdate,
+    TestMatchingAdd,
+    TestMatchingUpdate,
+    TestQuestionBase,
+    TestQuestionUpdate,
+    UpdateMessageResponse,
+)
 from src.session import get_db
-from src.utils.create_test import create_test_logic
+from src.utils.create_practical import CreatePracticalLesson
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
 
 router = APIRouter(prefix="/test")
 
 
-@router.patch("/update")
+@router.patch("/update", response_model=UpdateMessageResponse)
 async def update_test(
         test_id: int,
         data: TestConfigUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         repository.update_test_config(test_id=test_id, data=data)
-        return {"message": "Successfully updated"}
+        return UpdateMessageResponse()
 
     else:
         raise PermissionDeniedException()
@@ -40,39 +51,45 @@ async def create_test(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
-        repository = TestRepository(db=db)
-        return create_test_logic(repository=repository, data=data, test_id=test_id)
+    if user.is_moder:
+        # repository = TestRepository(db=db)
+        practical_worker = CreatePracticalLesson(
+            mode="test",
+            db=db,
+            questions_data=data,
+            practical_id=test_id
+        )
+        return practical_worker.start_creating()
     else:
         raise PermissionDeniedException()
 
 
-@router.delete("/question/delete")
+@router.delete("/question/delete", response_model=DeleteMessageResponse)
 async def delete_test_question(
         question_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         repository.delete_question(question_id=question_id)
-        return {"message": f"Question with id – {question_id} have been deleted"}
+        return DeleteMessageResponse()
 
     else:
         raise PermissionDeniedException()
 
 
-@router.patch("/question/update")
+@router.patch("/question/update", response_model=UpdateMessageResponse)
 async def update_test_question(
         question_id: int,
         data: TestQuestionUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         repository.update_question(question_id=question_id, data=data)
-        return {"message": "Successfully updated"}
+        return UpdateMessageResponse()
 
     else:
         raise PermissionDeniedException()
@@ -84,7 +101,7 @@ async def add_test_answer(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         answer_orm = repository.create_test_answer(
             question_id=data.question_id,
@@ -98,31 +115,31 @@ async def add_test_answer(
         raise PermissionDeniedException()
 
 
-@router.delete("/answer/delete")
+@router.delete("/answer/delete", response_model=DeleteMessageResponse)
 async def delete_test_answer(
         answer_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         repository.delete_answer(answer_id=answer_id)
-        return {"message": f"Answer with id – {answer_id} have been deleted"}
+        return DeleteMessageResponse()
     else:
         raise PermissionDeniedException()
 
 
-@router.patch("/answer/update")
+@router.patch("/answer/update", response_model=UpdateMessageResponse)
 async def update_test_answer(
         answer_id: int,
         data: TestAnswerUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         repository.update_answer(answer_id=answer_id, data=data)
-        return {"message": "Successfully updated"}
+        return UpdateMessageResponse()
 
     else:
         raise PermissionDeniedException()
@@ -134,7 +151,7 @@ async def add_test_matching(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         left_option, right_option = repository.create_test_matching(
             left_text=data.left_text,
@@ -152,32 +169,32 @@ async def add_test_matching(
         raise PermissionDeniedException()
 
 
-@router.patch("/matching/update")
+@router.patch("/matching/update", response_model=UpdateMessageResponse)
 async def update_test_matching(
         left_option_id: int,
         data: TestMatchingUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = TestRepository(db=db)
         repository.update_matching(left_id=left_option_id, data=data)
-        return {"message": "Successfully updated"}
+        return UpdateMessageResponse()
 
     else:
         raise PermissionDeniedException()
 
 
-@router.delete("/matching/delete")
+@router.delete("/matching/delete", response_model=DeleteMessageResponse)
 async def delete_test_matching(
-        left_option_id: Annotated[int, Query()],
+        left_option_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
     if user.is_moder:
         repository = TestRepository(db=db)
         repository.delete_matching(left_id=left_option_id)
-        return {"message": "Successfully deleted"}
+        return DeleteMessageResponse()
 
     else:
         raise PermissionDeniedException()

@@ -12,6 +12,11 @@ class LessonType(str, EnumType):
     exam = "exam"
 
 
+class LessonTemplateType(str, EnumType):
+    lecture = "lecture"
+    practical = "practical"
+
+
 class LectureAttributeType(str, EnumType):
     text = "text"
     present = "present"

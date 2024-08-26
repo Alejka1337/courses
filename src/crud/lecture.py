@@ -1,7 +1,13 @@
 from sqlalchemy.orm import Session, joinedload
 
 from src.enums import LectureAttributeType
-from src.models import LectureAttributeOrm, LectureFilesOrm, LectureLinksOrm, LectureOrm, LessonOrm
+from src.models import (
+    LectureAttributeOrm,
+    LectureFilesOrm,
+    LectureLinksOrm,
+    LectureOrm,
+    LessonOrm,
+)
 from src.schemas.lecture import LectureAttributeUpdate, LectureFileAttributeUpdate
 from src.utils.save_files import delete_file
 
@@ -86,6 +92,9 @@ class LectureRepository:
                 .filter(self.attr_model.lecture_id == lecture_id)
                 .order_by(self.attr_model.a_number)
                 .all())
+
+    def select_lecture_by_attr_id(self, attr_id: int) -> int:
+        return self.db.query(self.attr_model.lecture_id).filter(self.attr_model.id == attr_id).scalar()
 
     def update_lecture_audio(self, lecture_id: int, audios: list) -> None:
         (self.db.query(self.model)

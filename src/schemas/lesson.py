@@ -1,8 +1,8 @@
 from typing import Optional
 
-from pydantic import BaseModel, PositiveInt, model_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, PositiveInt, model_validator
 
-from src.enums import LessonType, LessonStatus
+from src.enums import LessonStatus, LessonType
 
 
 class LessonCreate(BaseModel):

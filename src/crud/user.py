@@ -4,8 +4,15 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session, joinedload
 
 from src.enums import UserType
-from src.models import (ActivateCodeOrm, ImageOrm, ModeratorOrm, ResetPasswordLinkOrm, StudentCourseAssociation,
-                        StudentOrm, UserOrm)
+from src.models import (
+    ActivateCodeOrm,
+    ImageOrm,
+    ModeratorOrm,
+    ResetPasswordLinkOrm,
+    StudentCourseAssociation,
+    StudentOrm,
+    UserOrm,
+)
 from src.schemas.user import StudentCreate, StudentCreateViaGoogle, UserUpdate
 from src.utils.password import hash_password
 
@@ -250,6 +257,7 @@ class UserRepository:
 
         student = (self.db.query(self.student_model)
                    .options(joinedload(self.student_model.chats))
+                   .options(joinedload(self.student_model.course_certificates))
                    .filter(self.student_model.user_id == user_id)
                    .first())
 

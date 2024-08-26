@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, PositiveInt, ConfigDict
+from pydantic import BaseModel, ConfigDict, PositiveInt
 
 
 class CategoryCreate(BaseModel):
@@ -19,6 +20,9 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(CategoryCreate):
     id: PositiveInt
     discount: PositiveInt
+    is_published: bool
+    timestamp_add: datetime
+    timestamp_change: datetime
 
     model_config = ConfigDict(from_attributes=True)
 

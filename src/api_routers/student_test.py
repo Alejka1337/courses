@@ -2,10 +2,17 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
-from src.crud.student_lesson import confirm_student_practical_db, select_student_lesson_db
+from src.crud.student_lesson import (
+    confirm_student_practical_db,
+    select_student_lesson_db,
+)
 from src.crud.student_test import StudentTestRepository
 from src.models import UserOrm
-from src.schemas.practical import StudentPractical, SubmitStudentPractical, TestResponse
+from src.schemas.student_practical import (
+    StudentPractical,
+    SubmitStudentPractical,
+    TestResponse,
+)
 from src.session import get_db
 from src.utils.assessment_managers import TestManager
 from src.utils.exceptions import PermissionDeniedException
@@ -65,7 +72,7 @@ async def submit_test_attempt(
         student_lesson = select_student_lesson_db(db=db, student_id=data.student_id, lesson_id=data.lesson_id)
         test_attempt = student_test_repo.select_attempt_by_id(attempt_id=data.attempt_id)
         confirm_student_practical_db(
-            db=db, score=test_attempt.attempt_score, attempt=test_attempt.attempt_number, student_lesson=student_lesson
+            db=db, score=test_attempt.attempt_score, attempt=test_attempt.id, student_lesson=student_lesson
         )
 
         # celery logic

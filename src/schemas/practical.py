@@ -1,104 +1,209 @@
-from typing import List, Optional, Union
+from typing import Any, List, NamedTuple, Optional, Union
 
+from pydantic import BaseModel, PositiveInt
 from typing_extensions import Self
-
-from pydantic import BaseModel, PositiveInt, model_validator, ConfigDict
 
 from src.enums import QuestionTypeOption
 
 
-class StudentAnswerBase(BaseModel):
-    q_id: PositiveInt
-    q_type: QuestionTypeOption
+class MatchingTuple(NamedTuple):
+    left_id: PositiveInt
+    left_text: str
+    right_id: PositiveInt
+    right_text: str
 
 
-class StudentAnswer(StudentAnswerBase):
+class AnswerBase(BaseModel):
+    a_text: str
+    is_correct: bool
+    image_path: Optional[str] = None
+
+
+class AnswerResponse(AnswerBase):
     a_id: PositiveInt
 
+    @classmethod
+    def from_orm(cls, obj: Any) -> Self:
+        return cls(
+            a_id=obj.id,
+            a_text=obj.a_text,
+            is_correct=obj.is_correct,
+            image_path=obj.image_path
+        )
 
-class StudentAnswers(StudentAnswerBase):
-    a_ids: List[PositiveInt]
+
+class TestAnswerResponse(AnswerResponse):
+    pass
 
 
-class StudentMatching(BaseModel):
+class ExamAnswerResponse(AnswerResponse):
+    pass
+
+
+class MatchingResponseAfterAdd(BaseModel):
     left_id: PositiveInt
+    left_text: str
     right_id: PositiveInt
+    right_text: str
+
+    @classmethod
+    def from_orm(cls, obj: MatchingTuple):
+        return cls(
+            left_id=obj.left_id,
+            left_text=obj.left_text,
+            right_id=obj.right_id,
+            right_text=obj.right_text
+        )
 
 
-class StudentMatchingList(StudentAnswerBase):
-    matching: List[StudentMatching]
+class MatchingItem(BaseModel):
+    id: PositiveInt
+    value: str
 
 
-class StudentPractical(BaseModel):
-    lesson_id: PositiveInt
-    student_answers: List[Union[StudentAnswer, StudentAnswers, StudentMatchingList]]
+class MatchingLeft(BaseModel):
+    left: List[MatchingItem]
 
 
-class SubmitStudentPractical(BaseModel):
-    attempt_id: PositiveInt
-    student_id: PositiveInt
-    lesson_id: PositiveInt
+class MatchingRight(BaseModel):
+    right: List[MatchingItem]
 
 
-class NewAttempt(BaseModel):
-    attempt_number: PositiveInt
-    attempt_score: Optional[int] = None
-    student_id: PositiveInt
+class MatchingResponse(BaseModel):
+    left: List[MatchingItem]
+    right: List[MatchingItem]
 
 
-class ExamNewAttempt(NewAttempt):
-    exam_id: PositiveInt
+class MatchingBase(BaseModel):
+    right_text: str
+    left_text: str
 
 
-class TestNewAttempt(NewAttempt):
-    test_id: PositiveInt
+class QuestionBase(BaseModel):
+    q_text: str
+    q_number: PositiveInt
+    q_score: PositiveInt
+    q_type: QuestionTypeOption
+    hidden: Optional[bool] = False
+    image_path: Optional[str] = None
+    answers: List[Union[AnswerBase, MatchingBase]]
 
 
-class StudentAnswerBase(BaseModel):
-    score: int | float
+class TestQuestionBase(QuestionBase):
+    pass
+
+
+class ExamQuestionBase(QuestionBase):
+    pass
+
+
+class ConfigUpdate(BaseModel):
+    score: Optional[PositiveInt] = None
+    attempts: Optional[PositiveInt] = None
+
+
+class TestConfigUpdate(ConfigUpdate):
+    pass
+
+
+class ExamConfigUpdate(ConfigUpdate):
+    timer: Optional[int] = None
+    min_score: Optional[PositiveInt] = None
+
+
+class QuestionUpdate(BaseModel):
+    q_text: Optional[str] = None
+    q_number: Optional[PositiveInt] = None
+    q_score: Optional[PositiveInt] = None
+    hidden: Optional[bool] = False
+    image_path: Optional[str] = None
+
+
+class TestQuestionUpdate(QuestionUpdate):
+    pass
+
+
+class ExamQuestionUpdate(QuestionUpdate):
+    pass
+
+
+class AnswerUpdate(BaseModel):
+    a_text: Optional[str] = None
+    is_correct: Optional[bool] = False
+    image_path: Optional[str] = None
+
+
+class TestAnswerUpdate(AnswerUpdate):
+    pass
+
+
+class ExamAnswerUpdate(AnswerUpdate):
+    pass
+
+
+class MatchingUpdate(BaseModel):
+    right_text: Optional[str] = None
+    left_text: Optional[str] = None
+
+
+class TestMatchingUpdate(MatchingUpdate):
+    pass
+
+
+class ExamMatchingUpdate(MatchingUpdate):
+    pass
+
+
+class AnswerAdd(AnswerBase):
     question_id: PositiveInt
-    question_type: QuestionTypeOption
-    student_attempt_id: PositiveInt
 
 
-class StudentAnswerDetail(StudentAnswerBase):
-    answer_id: PositiveInt
+class TestAnswerAdd(AnswerAdd):
+    pass
 
 
-class StudentAnswersDetail(StudentAnswerBase):
-    answer_ids: List[PositiveInt]
+class ExamAnswerAdd(AnswerAdd):
+    pass
 
 
-class StudentMatchingDetail(StudentAnswerBase):
-    left_id: PositiveInt
-    right_id: PositiveInt
+class MatchingAdd(MatchingBase):
+    question_id: PositiveInt
 
 
-class ExamAttemptResponse(ExamNewAttempt):
-    id: PositiveInt
-
-    model_config = ConfigDict(from_attributes=True)
+class TestMatchingAdd(MatchingAdd):
+    pass
 
 
-class ExamResponse(ExamAttemptResponse):
-    message: str = ""
-
-    @model_validator(mode='after')
-    def set_message(self) -> Self:
-        self.message = f"Your exam score {self.attempt_score}"
-        return self
+class ExamMatchingAdd(MatchingAdd):
+    pass
 
 
-class TestAttemptResponse(TestNewAttempt):
-    id: PositiveInt
+class QuestionResponse(BaseModel):
+    q_id: PositiveInt
+    q_text: str
+    q_number: PositiveInt
+    q_score: PositiveInt
+    q_type: QuestionTypeOption
+    hidden: Optional[bool] = False
+    image_path: Optional[str] = None
+    answers: List[Union[AnswerResponse, MatchingResponse]]
 
-    model_config = ConfigDict(from_attributes=True)
+
+class TestQuestionResponse(QuestionResponse):
+    pass
 
 
-class TestResponse(TestAttemptResponse):
-    message: str = ""
+class ExamQuestionResponse(QuestionResponse):
+    pass
 
-    @model_validator(mode='after')
-    def set_message(self) -> Self:
-        self.message = f"Your test score {self.attempt_score}"
-        return self
+
+class QuestionListResponse(BaseModel):
+    questions: List[QuestionResponse]
+
+
+class UpdateMessageResponse(BaseModel):
+    message: str = "Successfully updated"
+
+
+class DeleteMessageResponse(BaseModel):
+    message: str = "Successfully deleted"

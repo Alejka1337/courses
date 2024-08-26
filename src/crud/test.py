@@ -2,9 +2,21 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.enums import LessonStatus, LessonType, QuestionTypeOption
-from src.models import (LessonOrm, StudentLessonOrm, TestAnswerOrm, TestMatchingLeftOrm, TestMatchingRightOrm, TestOrm,
-                        TestQuestionOrm)
-from src.schemas.test import TestAnswerUpdate, TestConfigUpdate, TestMatchingUpdate, TestQuestionUpdate
+from src.models import (
+    LessonOrm,
+    StudentLessonOrm,
+    TestAnswerOrm,
+    TestMatchingLeftOrm,
+    TestMatchingRightOrm,
+    TestOrm,
+    TestQuestionOrm,
+)
+from src.schemas.practical import (
+    TestAnswerUpdate,
+    TestConfigUpdate,
+    TestMatchingUpdate,
+    TestQuestionUpdate,
+)
 
 
 class TestRepository:
@@ -265,8 +277,8 @@ class TestRepository:
             self.db.delete(left)
             self.db.delete(right)
             self.db.commit()
+
         except Exception as e:
-            print(e)
             self.db.rollback()
 
     def select_test_data(self, lesson: LessonOrm, student_id: int = None):
@@ -281,8 +293,10 @@ class TestRepository:
                                      .filter(self.student_lesson_model.lesson_id == lesson.id)
                                      .filter(self.student_lesson_model.student_id == student_id)
                                      .first())
+
                 if student_test_info.status == LessonStatus.completed.value:
                     test_data["my_score"] = student_test_info.score
+                    test_data["my_attempt_id"] = student_test_info.attempt
 
             for question in test_questions:
 

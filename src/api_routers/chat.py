@@ -1,19 +1,35 @@
 import logging
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
-from fastapi.websockets import WebSocket, WebSocketDisconnect
 from fastapi.exceptions import WebSocketException
+from fastapi.websockets import WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from src.crud.chat import (initialization_chat_db, save_chat_message_db, save_first_chat_message_db,
-                           save_message_file_db, save_message_files_db, save_moder_message_db, select_chat_db,
-                           select_last_message_db, select_new_chat_messages_db, select_recipient_id,
-                           select_student_recipient_db, update_chat_status_db, update_recipient_db, check_active_chat)
+from src.crud.chat import (
+    check_active_chat,
+    initialization_chat_db,
+    save_chat_message_db,
+    save_first_chat_message_db,
+    save_message_file_db,
+    save_message_files_db,
+    save_moder_message_db,
+    select_chat_db,
+    select_last_message_db,
+    select_new_chat_messages_db,
+    select_recipient_id,
+    select_student_recipient_db,
+    update_chat_status_db,
+    update_recipient_db,
+)
 from src.enums import ChatStatusType, StaticFileType
 from src.models import UserOrm
 from src.schemas.chat import InitializationChat
 from src.session import get_db
-from src.utils.chat_manager import ChatManager, serialize_messages, serialize_new_message
+from src.utils.chat_manager import (
+    ChatManager,
+    serialize_messages,
+    serialize_new_message,
+)
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_file

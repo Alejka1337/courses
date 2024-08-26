@@ -14,15 +14,37 @@ from src.crud.student_course import subscribe_student_to_course_db
 from src.crud.user import UserRepository
 from src.enums import StaticFileType
 from src.models import UserOrm
-from src.schemas.user import (AuthResponse, BuyCourse, LoginWithGoogle, ResetPassword, SetNewPassword, StudentCreate,
-                              StudentCreateViaGoogle, UserActivate, UsernameUpdate, UserRegistration, UserUpdate,
-                              UserRegistrationResponse, UserAdmin)
+from src.schemas.user import (
+    AuthResponse,
+    BuyCourse,
+    LoginWithGoogle,
+    ResetPassword,
+    SetNewPassword,
+    StudentCreate,
+    StudentCreateViaGoogle,
+    UserActivate,
+    UserAdmin,
+    UsernameUpdate,
+    UserRegistration,
+    UserRegistrationResponse,
+    UserUpdate,
+)
 from src.session import get_db
 from src.utils.decode_code import decode_and_check_refresh_token, decode_google_token
-from src.utils.exceptions import (CookieNotFoundException, EmailDoesExistException, EmailNotFoundException,
-                                  InvalidActivateCodeException, InvalidPasswordException, InvalidResetCodeException,
-                                  InvalidUsernameException, NotActivateAccountException, PermissionDeniedException,
-                                  UpdateEmailException, UpdateUsernameException, UsernameDoesExistException)
+from src.utils.exceptions import (
+    CookieNotFoundException,
+    EmailDoesExistException,
+    EmailNotFoundException,
+    InvalidActivateCodeException,
+    InvalidPasswordException,
+    InvalidResetCodeException,
+    InvalidUsernameException,
+    NotActivateAccountException,
+    PermissionDeniedException,
+    UpdateEmailException,
+    UpdateUsernameException,
+    UsernameDoesExistException,
+)
 from src.utils.get_user import get_current_user
 from src.utils.info_me import set_info_me
 from src.utils.password import check_password

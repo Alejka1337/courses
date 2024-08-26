@@ -3,9 +3,16 @@ from sqlalchemy.orm import Session
 
 from src.celery import celery_tasks
 from src.crud.student_exam import StudentExamRepository
-from src.crud.student_lesson import confirm_student_practical_db, select_student_lesson_db
+from src.crud.student_lesson import (
+    confirm_student_practical_db,
+    select_student_lesson_db,
+)
 from src.models import UserOrm
-from src.schemas.practical import StudentPractical, SubmitStudentPractical, ExamAttemptResponse, ExamResponse
+from src.schemas.student_practical import (
+    ExamResponse,
+    StudentPractical,
+    SubmitStudentPractical,
+)
 from src.session import get_db
 from src.utils.assessment_managers import ExamManager
 from src.utils.exceptions import PermissionDeniedException
@@ -66,7 +73,7 @@ async def submit_exam_attempt(
         student_lesson = select_student_lesson_db(db=db, student_id=data.student_id, lesson_id=data.lesson_id)
         exam_attempt = student_exam_repository.select_attempt_by_id(attempt_id=data.attempt_id)
         confirm_student_practical_db(
-            db=db, score=exam_attempt.attempt_score, attempt=exam_attempt.attempt_number, student_lesson=student_lesson
+            db=db, score=exam_attempt.attempt_score, attempt=exam_attempt.id, student_lesson=student_lesson
         )
 
         # celery logic
@@ -75,6 +82,7 @@ async def submit_exam_attempt(
         celery_tasks.update_student_course_grade.delay(
             student_id=data.student_id, lesson_id=data.lesson_id, score=exam_attempt.attempt_score
         )
+        celery_tasks.complete_student_course(lesson_id=data.lesson_id, student_id=data.student_id)
 
         return {"Message": f"Your exam was submitted. Score - {exam_attempt.attempt_score}"}
 

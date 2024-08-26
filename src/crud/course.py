@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session, joinedload
 
 from src.crud.lesson import LessonRepository
 from src.models import CourseIconOrm, CourseOrm, LessonOrm, StudentCourseAssociation
-from src.schemas.course import CourseCreate, CourseIconCreate, CourseIconUpdate, CourseUpdate
+from src.schemas.course import (
+    CourseCreate,
+    CourseIconCreate,
+    CourseIconUpdate,
+    CourseUpdate,
+)
 
 
 class CourseRepository:

@@ -1,9 +1,9 @@
-from typing import List, Optional, Union, Literal, Any
+from typing import Any, List, Literal, Optional, Union
 
-from pydantic import BaseModel, PositiveFloat, PositiveInt, ConfigDict
+from pydantic import BaseModel, ConfigDict, PositiveFloat, PositiveInt
 from pydantic.main import IncEx
 
-from src.schemas.lesson import LessonResponse, LessonDetailResponse, LessonAuthResponse
+from src.schemas.lesson import LessonAuthResponse, LessonDetailResponse, LessonResponse
 
 
 class CourseIconCreate(BaseModel):

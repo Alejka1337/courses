@@ -31,16 +31,8 @@ SMTP_SERVER = os.getenv("SMTP_SERVER")
 
 # TextToSpeech
 SPEECHES_DIR = "static/speeches"
-MALE_VOICES = [
-    "com.apple.speech.synthesis.voice.Alex",
-    "com.apple.speech.synthesis.voice.daniel",
-    "com.apple.speech.synthesis.voice.rishi"
-]
-FEMALE_VOICE = [
-    "com.apple.speech.synthesis.voice.karen",
-    "com.apple.speech.synthesis.voice.moira",
-    "com.apple.speech.synthesis.voice.samantha"
-]
+VOICE_MODEL = "tts_models/en/vctk/vits"
+
 
 # STATIC FILES DIRS
 STUDENT_AVATAR_PATH = "static/images/"

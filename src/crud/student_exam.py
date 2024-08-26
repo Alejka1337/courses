@@ -3,8 +3,17 @@ from typing import List, Optional, Union
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from src.models import StudentExamAnswerOrm, StudentExamAttemptsOrm, StudentExamMatchingOrm
-from src.schemas.practical import ExamNewAttempt, StudentAnswerDetail, StudentAnswersDetail, StudentMatchingDetail
+from src.models import (
+    StudentExamAnswerOrm,
+    StudentExamAttemptsOrm,
+    StudentExamMatchingOrm,
+)
+from src.schemas.student_practical import (
+    ExamNewAttempt,
+    StudentAnswerDetail,
+    StudentAnswersDetail,
+    StudentMatchingDetail,
+)
 from src.utils.serialize_attempt import serialize_attempt_data
 
 

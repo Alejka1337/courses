@@ -1,4 +1,5 @@
 import uvicorn
+
 # from debug_toolbar.middleware import DebugToolbarMiddleware
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware

@@ -1,5 +1,3 @@
-from typing import Set
-
 from src.models import ImageOrm, StudentCourseAssociation, StudentOrm, UserOrm
 
 
@@ -8,6 +6,7 @@ def set_info_me(user: UserOrm, student: StudentOrm, image: ImageOrm, courses: li
         "user_id": user.id,
         "user_type": user.usertype,
         "username": user.username,
+        "student_id": student.id,
         "email": student.email,
         "name": student.name,
         "surname": student.surname,
@@ -19,7 +18,8 @@ def set_info_me(user: UserOrm, student: StudentOrm, image: ImageOrm, courses: li
         "changed_name": student.changed_name,
         "changed_surname": student.changed_surname,
         "courses": [],
-        "chats": student.chats
+        "chats": student.chats,
+        "certificates": student.course_certificates
     }
 
     for course in courses:

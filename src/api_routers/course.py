@@ -4,15 +4,29 @@ from sqlalchemy.orm import Session
 from src.celery import celery_tasks
 from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
-from src.crud.student_course import select_student_course_info, select_student_lesson_info
+from src.crud.student_course import (
+    select_student_course_info,
+    select_student_lesson_info,
+)
 from src.enums import StaticFileType
 from src.models import UserOrm
-from src.schemas.course import (CourseCreate, CourseIconsCreate, CourseIconUpdate, CourseUpdate, CourseResponse,
-                                DeleteCourseResponse, CourseDetailResponse, ImageUploadedResponse, IconUploadedResponse,
-                                AttachedIconResponse, IconResponse, PublishCourseResponse)
+from src.schemas.course import (
+    AttachedIconResponse,
+    CourseCreate,
+    CourseDetailResponse,
+    CourseIconsCreate,
+    CourseIconUpdate,
+    CourseResponse,
+    CourseUpdate,
+    DeleteCourseResponse,
+    IconResponse,
+    IconUploadedResponse,
+    ImageUploadedResponse,
+    PublishCourseResponse,
+)
 from src.session import get_db
 from src.utils.decode_code import decode_access_token
-from src.utils.exceptions import PermissionDeniedException, CourseNotFoundException
+from src.utils.exceptions import CourseNotFoundException, PermissionDeniedException
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_file
 
@@ -110,13 +124,16 @@ async def get_course(
     if authorization and authorization.startswith("Bearer") and len(authorization) > 10:
         user = decode_access_token(db=db, access_token=authorization[7:])
 
-        course = repository.select_course_by_id(course_id=course_id)
-        if course is None:
-            CourseNotFoundException()
+        if user.is_student:
+            course = repository.select_course_by_id(course_id=course_id)
+            if course is None:
+                CourseNotFoundException()
 
-        select_student_course_info(db=db, course=course, student_id=user.student.id)
-        select_student_lesson_info(db=db, course=course, student_id=user.student.id)
-        return course
+            select_student_course_info(db=db, course=course, student_id=user.student.id)
+            select_student_lesson_info(db=db, course=course, student_id=user.student.id)
+            return course
+        else:
+            return repository.select_course_by_id(course_id=course_id)
 
     else:
         return repository.select_course_by_id(course_id=course_id)

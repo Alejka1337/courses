@@ -5,7 +5,7 @@ from src.models import (
     StudentExamAnswerOrm,
     StudentExamMatchingOrm,
     StudentTestAnswerOrm,
-    StudentTestMatchingOrm
+    StudentTestMatchingOrm,
 )
 
 

@@ -6,8 +6,7 @@ from src.crud.student_test import StudentTestRepository
 from src.crud.test import TestRepository
 from src.enums import QuestionTypeOption
 from src.models import StudentExamAttemptsOrm, StudentTestAttemptsOrm
-from src.utils.exceptions import MaxAttemptException
-from src.schemas.practical import (
+from src.schemas.student_practical import (
     ExamNewAttempt,
     StudentAnswer,
     StudentAnswerDetail,
@@ -16,8 +15,9 @@ from src.schemas.practical import (
     StudentMatchingDetail,
     StudentMatchingList,
     StudentPractical,
-    TestNewAttempt
+    TestNewAttempt,
 )
+from src.utils.exceptions import MaxAttemptException
 
 
 class AssessmentManager:

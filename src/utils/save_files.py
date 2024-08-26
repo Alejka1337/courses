@@ -4,8 +4,15 @@ from typing import Literal
 
 from fastapi import UploadFile
 
-from src.config import (CATEGORY_AVATAR_PATH, CHAT_FILES_PATH, COURSE_ICON_PATH, COURSE_IMAGE_PATH,
-                        INSTRUCTION_FILES_PATH, LESSON_IMAGE_PATH, STUDENT_AVATAR_PATH)
+from src.config import (
+    CATEGORY_AVATAR_PATH,
+    CHAT_FILES_PATH,
+    COURSE_ICON_PATH,
+    COURSE_IMAGE_PATH,
+    INSTRUCTION_FILES_PATH,
+    LESSON_IMAGE_PATH,
+    STUDENT_AVATAR_PATH,
+)
 from src.enums import StaticFileType
 
 MODE = Literal["mp3", "all"]

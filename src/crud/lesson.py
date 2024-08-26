@@ -57,7 +57,7 @@ class LessonRepository:
             return self.test_repo.select_test_data(lesson=lesson, student_id=student_id)
 
         else:
-            return self.exam_repo.select_exam_data(lesson)
+            return self.exam_repo.select_exam_data(lesson=lesson, student_id=student_id)
 
     def select_lessons_by_course_db(self, course_id: int):
         return (self.db.query(self.lesson_model)

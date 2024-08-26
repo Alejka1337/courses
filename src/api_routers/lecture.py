@@ -4,12 +4,26 @@ from sqlalchemy.orm import Session
 from src.celery import celery_tasks
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import LessonRepository
-from src.crud.student_lesson import confirm_student_lecture_db, select_student_lesson_db, set_active_student_lesson_db
-from src.enums import UserType
+from src.crud.student_lesson import (
+    confirm_student_lecture_db,
+    select_student_lesson_db,
+    set_active_student_lesson_db,
+)
 from src.models import UserOrm
-from src.schemas.lecture import (FileResponse, LectureAttributeBase, LectureAttributeBaseUpdate, LectureAttributeCreate,
-                                 LectureAttributeResponse, LectureAttributeUpdate, LectureFileAttributeUpdate,
-                                 LectureFileBase, LinkResponse)
+from src.schemas.lecture import (
+    ConfirmLectureResponse,
+    DeleteAttributeResponse,
+    FileResponse,
+    LectureAttributeBase,
+    LectureAttributeBaseUpdate,
+    LectureAttributeCreate,
+    LectureAttributeResponse,
+    LectureAttributeUpdate,
+    LectureFileAttributeUpdate,
+    LectureFileBase,
+    LinkResponse,
+    UpdateAttributeResponse,
+)
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
@@ -24,7 +38,7 @@ async def create_text_attribute(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         new_attr = repository.create_attribute_base(
             lecture_id=lecture_id,
@@ -52,14 +66,14 @@ async def create_text_attribute(
         raise PermissionDeniedException()
 
 
-@router.patch("/update/text")
+@router.patch("/update/text", response_model=UpdateAttributeResponse)
 async def update_text_attribute(
         attr_id: int,
         data: LectureAttributeBaseUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         repository.update_lecture_attr(
             attr_id=attr_id,
@@ -68,7 +82,11 @@ async def update_text_attribute(
             a_number=data.a_number,
             hidden=data.hidden
         )
-        return {"message": "Attribute successfully updated"}
+
+        lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
+
+        return UpdateAttributeResponse()
 
     else:
         raise PermissionDeniedException()
@@ -81,7 +99,7 @@ async def create_file_attribute(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         attribute = repository.create_attribute_base(
             lecture_id=lecture_id,
@@ -121,17 +139,21 @@ async def create_file_attribute(
         raise PermissionDeniedException()
 
 
-@router.patch("/update/file")
+@router.patch("/update/file", response_model=UpdateAttributeResponse)
 async def update_file_attribute(
         attr_id: int,
         data: LectureFileAttributeUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         repository.update_lecture_file_attr(attr_id=attr_id, data=data)
-        return {"message": "Attribute successfully updated"}
+
+        lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
+
+        return UpdateAttributeResponse()
     else:
         raise PermissionDeniedException()
 
@@ -143,7 +165,7 @@ async def create_files_attribute(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         attribute = repository.create_attribute_base(
             lecture_id=lecture_id,
@@ -186,16 +208,21 @@ async def create_files_attribute(
         raise PermissionDeniedException()
 
 
-@router.patch("/update/files")
+@router.patch("/update/files", response_model=UpdateAttributeResponse)
 async def update_files_attribute(
         attr_id: int,
         data: LectureAttributeUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         repository.update_lecture_files_attr(attr_id=attr_id, data=data)
+
+        lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
+
+        return UpdateAttributeResponse()
 
     else:
         raise PermissionDeniedException()
@@ -208,7 +235,7 @@ async def create_images_attribute(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         attribute = repository.create_attribute_base(
             lecture_id=lecture_id,
@@ -251,16 +278,21 @@ async def create_images_attribute(
         raise PermissionDeniedException()
 
 
-@router.patch("/update/images")
+@router.patch("/update/images", response_model=UpdateAttributeResponse)
 async def update_images_attribute(
         attr_id: int,
         data: LectureAttributeUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         repository.update_lecture_files_attr(attr_id=attr_id, data=data)
+
+        lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
+
+        return UpdateAttributeResponse()
 
     else:
         raise PermissionDeniedException()
@@ -273,7 +305,7 @@ async def create_link_attribute(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         attribute = repository.create_attribute_base(
             lecture_id=lecture_id,
@@ -313,43 +345,48 @@ async def create_link_attribute(
         raise PermissionDeniedException()
 
 
-@router.patch("/update/link")
+@router.patch("/update/link", response_model=UpdateAttributeResponse)
 async def update_link_attribute(
         attr_id: int,
         data: LectureAttributeUpdate,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         repository.update_lecture_links_attr(attr_id=attr_id, data=data)
+
+        lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
+        celery_tasks.create_lecture_audio.delay(lecture_id)
+
+        return UpdateAttributeResponse()
 
     else:
         raise PermissionDeniedException()
 
 
-@router.delete("/delete/attr")
+@router.delete("/delete/attr", response_model=DeleteAttributeResponse)
 async def delete_attribute(
         attr_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.moder.value:
+    if user.is_moder:
         repository = LectureRepository(db=db)
         repository.delete_lecture_attr(attr_id=attr_id)
-        return {"message": "Successfully deleted"}
+        return DeleteAttributeResponse()
     else:
         raise PermissionDeniedException()
 
 
-@router.post("/confirm")
+@router.post("/confirm", response_model=ConfirmLectureResponse)
 async def confirm_lecture(
         lesson_id: int,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
     lesson_repo = LessonRepository(db=db)
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
         student_lesson = select_student_lesson_db(db=db, lesson_id=lesson_id, student_id=user.student.id)
         confirm_student_lecture_db(db=db, student_lesson=student_lesson)
@@ -360,6 +397,6 @@ async def confirm_lecture(
         set_active_student_lesson_db(db=db, student_lesson=next_student_lesson)
 
         celery_tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=lesson_id)
-        return {"message": "Lecture successfully confirm"}
+        return ConfirmLectureResponse()
     else:
         raise PermissionDeniedException()

@@ -1,8 +1,7 @@
 from datetime import date
+from typing import Any, List, Optional
 
-from typing import List, Optional, Any
-
-from pydantic import BaseModel, PositiveInt, ConfigDict
+from pydantic import BaseModel, ConfigDict, PositiveInt
 
 from src.enums import InstructionType
 

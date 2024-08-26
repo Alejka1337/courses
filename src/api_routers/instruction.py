@@ -6,8 +6,14 @@ from sqlalchemy.orm import Session
 from src.crud.instruction import InstructionRepository
 from src.enums import StaticFileType, UserType
 from src.models import UserOrm
-from src.schemas.instruction import (InstructionCreate, InstructionUpdate, InstructionFileBase, InstructionResponse,
-                                     InstructionDetailResponse, InstructionDeleteResponse)
+from src.schemas.instruction import (
+    InstructionCreate,
+    InstructionDeleteResponse,
+    InstructionDetailResponse,
+    InstructionFileBase,
+    InstructionResponse,
+    InstructionUpdate,
+)
 from src.session import get_db
 from src.utils.exceptions import InstructionNotFoundException, PermissionDeniedException
 from src.utils.get_user import get_current_user

@@ -104,3 +104,15 @@ class LectureAttributeResponse(LectureAttributeBase):
     a_id: PositiveInt
     files: List[FileResponse] = None
     links: List[LinkResponse] = None
+
+
+class UpdateAttributeResponse(BaseModel):
+    message: str = "Attribute successfully updated"
+
+
+class DeleteAttributeResponse(BaseModel):
+    message: str = "Successfully deleted"
+
+
+class ConfirmLectureResponse(BaseModel):
+    message: str = "Lecture successfully confirm"
