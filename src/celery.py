@@ -2,32 +2,48 @@ import logging
 import os
 from datetime import datetime
 
+from kombu import Exchange, Queue
 from sqlalchemy.exc import SQLAlchemyError
-
+from TTS.api import TTS
 from celery import Celery, Task
-from src.config import BROKER_URL
+from celery.signals import worker_ready
+
+from src.config import BROKER_URL, SPEECHES_DIR, VOICE_MODEL
+from src.crud.certificate import CertificateRepository
 from src.crud.course import CourseRepository
 from src.crud.exam import ExamRepository
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import LessonRepository
 from src.crud.notifications import NotificationRepository
-from src.crud.student_course import (select_student_course_db, select_students_whose_bought_courses,
-                                     update_course_present, update_course_score)
-from src.crud.student_lesson import (create_student_lesson_db, select_count_completed_student_lessons_db,
-                                     select_count_student_lessons_db, select_student_lessons_db,
-                                     select_students_for_course_db, update_student_lesson_status_db,
-                                     update_student_lesson_structure)
+from src.crud.student_course import (
+    select_student_course_db,
+    select_students_whose_bought_courses,
+    update_course_present,
+    update_course_score,
+    update_course_status,
+)
+from src.crud.student_lesson import (
+    create_student_lesson_db,
+    select_count_completed_student_lessons_db,
+    select_count_student_lessons_db,
+    select_student_lessons_db,
+    select_students_for_course_db,
+    update_student_lesson_status_db,
+    update_student_lesson_structure,
+)
 from src.crud.test import TestRepository
 from src.crud.user import UserRepository
 from src.enums import LessonStatus, LessonType
-from src.schemas.test import ExamConfigUpdate
+from src.schemas.practical import ExamConfigUpdate
 from src.session import SessionLocal
 from src.utils.activate_code import generate_activation_code, generate_reset_code
-from src.utils.notifications import (create_notification_text_for_add_new_course,
-                                     create_notification_text_for_update_course)
+from src.utils.lecture_text import create_lecture_text
+from src.utils.notifications import (
+    create_notification_text_for_add_new_course,
+    create_notification_text_for_update_course,
+)
 from src.utils.save_files import delete_files_in_directory
 from src.utils.smtp import send_mail_with_code
-from src.utils.text_to_speach import create_lecture_text, text_to_speach
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +70,34 @@ class DatabaseTask(Task):
 
 
 celery_app = Celery("celery", broker=BROKER_URL)
+
+celery_app.conf.update(
+    task_default_queue='default',
+    task_default_exchange='default',
+    task_default_routing_key='default',
+    worker_pool='solo',
+    worker_concurrency=1,
+)
+celery_app.conf.task_queues = (
+    Queue('default', Exchange('default'), routing_key='default'),
+    Queue('audio_tasks', Exchange('audio'), routing_key='audio.#'),
+)
+
 celery_app.Task = DatabaseTask
+
+tts = None
+
+
+@worker_ready.connect
+def setup_tts_model(sender, **kwargs):
+    if sender.hostname.startswith('worker_audio'):
+        global tts
+        tts = TTS(model_name=VOICE_MODEL)
 
 
 class CeleryTasks:
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def send_activate_code(self, user_id: int, email: str):
         try:
             user_repository = UserRepository(db=self.db)
@@ -70,7 +108,7 @@ class CeleryTasks:
             logger.error(f"Failed to send activation code: {e}")
             raise
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def activate_user(self, user_id: int, access_token: str, exp_token: datetime, refresh_token: str):
         try:
             user_repository = UserRepository(db=self.db)
@@ -86,7 +124,7 @@ class CeleryTasks:
             logger.error(f"Failed to activate user: {e}")
             raise
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def send_reset_pass_code(self, user_id: int, email: str):
         try:
             code = generate_reset_code()
@@ -98,15 +136,15 @@ class CeleryTasks:
             logger.error(f"Failed to send reset password code: {e}")
             raise
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def resend_activate_code(self, email: str, code: str):
         send_mail_with_code(to_email=email, mail_title="Your activate code", mail_body=code)
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def resend_reset_pass_code(self, email: str, code: str):
         send_mail_with_code(to_email=email, mail_title="Your reset password code", mail_body=code)
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def create_student_lesson(self, student_id: int, course_id: int):
         try:
             lesson_repo = LessonRepository(db=self.db)
@@ -134,7 +172,7 @@ class CeleryTasks:
         except SQLAlchemyError as e:
             logger.error(f"Error creating student lessons: {e}")
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def update_student_course_progress(self, student_id: int, lesson_id: int):
         try:
             lesson_repo = LessonRepository(db=self.db)
@@ -159,7 +197,7 @@ class CeleryTasks:
         except SQLAlchemyError as e:
             logger.error(f"Error updating student course progress: {e}")
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def update_student_course_grade(self, student_id: int, lesson_id: int, score: int):
         lesson_repo = LessonRepository(db=self.db)
         lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
@@ -170,22 +208,51 @@ class CeleryTasks:
     def update_student_lesson_status(self, lesson_id: int, student_id: int):
         update_student_lesson_status_db(db=self.db, lesson_id=lesson_id, student_id=student_id)
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask,  queue='default', max_retries=3, default_retry_delay=300)
+    def complete_student_course(self, lesson_id: int, student_id: int):
+        lesson_repo = LessonRepository(db=self.db)
+        certificate_repo = CertificateRepository(db=self.db)
+
+        logger.info("Starting create course certificate")
+
+        try:
+            lesson = lesson_repo.select_lesson_by_id_db(lesson_id=lesson_id)
+            student_course = select_student_course_db(db=self.db, course_id=lesson.course_id, student_id=student_id)
+            update_course_status(db=self.db, student_course=student_course)
+            certificate_repo.create_course_certificate(student_id=student_id, course_id=lesson.course_id)
+        except Exception as exc:
+            logger.error(f"Error while creating certificate for sudent {student_id}: {exc}", exc_info=True)
+            raise self.retry(exc=exc)
+
+    @celery_app.task(bind=True, base=DatabaseTask, queue='audio_tasks', max_retries=3, default_retry_delay=600)
     def create_lecture_audio(self, lecture_id: int):
         repository = LectureRepository(db=self.db)
         lecture_attrs = repository.select_lecture_attrs(lecture_id=lecture_id)
         lecture_text = create_lecture_text(lecture_attrs)
 
-        folder = "static/speeches" + "/lecture" + str(lecture_id)
+        folder = SPEECHES_DIR + "/lecture" + str(lecture_id)
         os.makedirs(folder, exist_ok=True)
         delete_files_in_directory(folder, "all")
 
-        result = text_to_speach(text=lecture_text, lecture_id=lecture_id)
-        # audio_list = [value for value in result.values()]
-        repository.update_lecture_audio(lecture_id=lecture_id, audios=result)
-        delete_files_in_directory(folder, "mp3")
+        logger.info("Starting create tts")
+        try:
+            result = []
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+            output_path = os.path.join(folder, "male1.wav")
+            tts.tts_to_file(text=lecture_text, speaker="p226", file_path=output_path)
+            result.append(output_path)
+
+            output_path = os.path.join(folder, "female1.wav")
+            tts.tts_to_file(text=lecture_text, speaker="p225", file_path=output_path)
+            result.append(output_path)
+            logger.info("Created tts")
+            repository.update_lecture_audio(lecture_id=lecture_id, audios=result)
+
+        except Exception as exc:
+            logger.error(f"Error while creating TTS for lecture_id {lecture_id}: {exc}", exc_info=True)
+            raise self.retry(exc=exc)
+
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def create_update_course_notification(self, new_lesson_id: int, course_id: int):
         student_ids = select_students_for_course_db(db=self.db, course_id=course_id)
         lesson_repo = LessonRepository(db=self.db)
@@ -203,7 +270,7 @@ class CeleryTasks:
 
             notification_rep.create_notification_about_course_updates(message=notification_text, student_id=student.id)
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def update_student_lessons(self, student_id: int, lesson_info: dict):
 
         lesson_repo = LessonRepository(db=self.db)
@@ -219,7 +286,7 @@ class CeleryTasks:
             student_lessons=student_lessons, student_id=student_id
         )
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def add_new_course_notification(self, course_id: int):
         student_ids = select_students_whose_bought_courses(db=self.db, course_id=course_id)
         course_rep = CourseRepository(db=self.db)
@@ -233,7 +300,7 @@ class CeleryTasks:
             )
             notification_rep.create_notification_about_adding_new_course(message=message, student_id=student.id)
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def check_correct_score(self, course_id: int):
         exam_rep = ExamRepository(db=self.db)
         test_repo = TestRepository(db=self.db)
@@ -247,7 +314,7 @@ class CeleryTasks:
                 new_exam_score = exam.score - abs(diff)
                 exam_rep.update_exam_config(exam_id=exam.id, data=ExamConfigUpdate(score=new_exam_score))
 
-    @celery_app.task(bind=True, base=DatabaseTask)
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
     def update_user_token_after_login(self, user_id: int, access_token: str, refresh_token: str, exp_token: datetime):
         user_repository = UserRepository(db=self.db)
         user = user_repository.select_user_by_id(user_id=user_id)
