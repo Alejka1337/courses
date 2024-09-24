@@ -12,6 +12,7 @@ from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import subscribe_student_to_course_db
 from src.crud.user import UserRepository
+from src.crud.notes import NotesRepository
 from src.enums import StaticFileType
 from src.models import UserOrm
 from src.schemas.user import (
@@ -540,6 +541,9 @@ async def info_me(
         user_repository = UserRepository(db=db)
         student, image, courses = user_repository.select_user_dashboard_info(user_id=user.id)
         response = set_info_me(user=user, student=student, image=image, courses=courses)
+
+        notes_repository = NotesRepository(db=db)
+        response["my_notes"] = notes_repository.select_folder_with_notes(student_id=student.id)
         return response
 
     else:
