@@ -52,7 +52,6 @@ async def create_test(
         user: UserOrm = Depends(get_current_user)
 ):
     if user.is_moder:
-        # repository = TestRepository(db=db)
         practical_worker = CreatePracticalLesson(
             mode="test",
             db=db,

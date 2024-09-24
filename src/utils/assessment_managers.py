@@ -189,9 +189,9 @@ class ExamManager(AssessmentManager):
         )
 
         attempt_number = last_attempt + 1 if last_attempt else 1
-        test_attempt = self.repository.select_count_attempt(lesson_id=self._lesson_id)
+        count_attempt = self.repository.select_count_attempt(lesson_id=self._lesson_id)
 
-        if attempt_number > test_attempt:
+        if attempt_number > count_attempt:
             raise MaxAttemptException()
 
         return attempt_number
@@ -227,9 +227,9 @@ class TestManager(AssessmentManager):
         )
 
         attempt_number = last_attempt + 1 if last_attempt else 1
-        test_attempt = self.repository.select_count_attempt(lesson_id=self._lesson_id)
+        count_attempt = self.repository.select_count_attempt(lesson_id=self._lesson_id)
 
-        if attempt_number > test_attempt:
+        if attempt_number > count_attempt:
             raise MaxAttemptException()
 
         return attempt_number

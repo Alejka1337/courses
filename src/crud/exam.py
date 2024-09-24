@@ -53,7 +53,7 @@ class ExamRepository:
 
             exam_score -= test_total_score
 
-        new_exam = ExamOrm(score=exam_score, attempts=10, timer=40, lesson_id=lesson_id)
+        new_exam = ExamOrm(score=exam_score, attempts=10, timer=40, lesson_id=lesson_id, min_score=int(exam_score/2))
         self.db.add(new_exam)
         self.db.commit()
         self.db.refresh(new_exam)
@@ -221,16 +221,13 @@ class ExamRepository:
             for mr in match_right:
                 self.db.delete(mr)
 
-            self.db.delete(question)
-            self.db.commit()
-
         else:
             answers = self.select_exam_answers(question_id=question.id)
             for answer in answers:
                 self.db.delete(answer)
 
-            self.db.delete(question)
-            self.db.commit()
+        self.db.delete(question)
+        self.db.commit()
 
     def update_answer(self, answer_id: int, data: ExamAnswerUpdate):
         answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()

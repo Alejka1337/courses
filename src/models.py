@@ -687,10 +687,12 @@ class FolderOrm(Base):
 
     id: Mapped[intpk]
     name: Mapped[str]
-    parent_id: Mapped[int] = mapped_column(ForeignKey("user_folders.id"))
+    parent_id: Mapped[int] = mapped_column(ForeignKey("user_folders.id"), nullable=True)
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"))
 
-    children: Mapped[list["FolderOrm"]] = relationship("FolderOrm", remote_side="FolderOrm.id")
+    children: Mapped[list["FolderOrm"]] = relationship(
+        "FolderOrm", backref="child_folder", remote_side="FolderOrm.id")
+
     student: Mapped["StudentOrm"] = relationship(back_populates="folders")
     notes: Mapped[list["UserNoteOrm"]] = relationship(back_populates="folder")
 

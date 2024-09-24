@@ -1,7 +1,6 @@
-from typing import Any, List, Literal, Optional, Union
+from typing import List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, PositiveFloat, PositiveInt
-from pydantic.main import IncEx
 
 from src.schemas.lesson import LessonAuthResponse, LessonDetailResponse, LessonResponse
 

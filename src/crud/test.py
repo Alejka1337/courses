@@ -231,16 +231,13 @@ class TestRepository:
             for mr in match_right:
                 self.db.delete(mr)
 
-            self.db.delete(question)
-            self.db.commit()
-
         else:
             answers = self.select_test_answers(question_id=question.id)
             for answer in answers:
                 self.db.delete(answer)
 
-            self.db.delete(question)
-            self.db.commit()
+        self.db.delete(question)
+        self.db.commit()
 
     def update_answer(self, answer_id: int, data: TestAnswerUpdate) -> None:
         answer = self.db.query(self.answer_model).filter(self.answer_model.id == answer_id).first()

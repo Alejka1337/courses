@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from src.celery import celery_tasks
 from src.crud.lesson import LessonRepository
 from src.crud.notifications import NotificationRepository
-from src.enums import UserType
 from src.models import UserOrm
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
@@ -19,7 +18,7 @@ async def get_my_notifications(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         repository = NotificationRepository(db=db)
         notifications = repository.select_student_notifications(student_id=user.student.id)
         return notifications
@@ -33,7 +32,7 @@ async def send_notification(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         repository = NotificationRepository(db=db)
         notification = repository.update_notification_sent_status(notification_id=notification_id)
         return notification
@@ -47,7 +46,7 @@ async def agree_with_notification(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.usertype == UserType.student.value:
+    if user.is_student:
         repository = NotificationRepository(db=db)
         notification = repository.select_one_student_notification(
             student_id=user.student.id,

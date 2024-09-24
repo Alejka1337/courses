@@ -61,12 +61,12 @@ class MatchingItem(BaseModel):
     value: str
 
 
-class MatchingLeft(BaseModel):
-    left: List[MatchingItem]
-
-
-class MatchingRight(BaseModel):
-    right: List[MatchingItem]
+# class MatchingLeft(BaseModel):
+#     left: List[MatchingItem]
+#
+#
+# class MatchingRight(BaseModel):
+#     right: List[MatchingItem]
 
 
 class MatchingResponse(BaseModel):

@@ -10,6 +10,7 @@ from src.models import (
 )
 from src.schemas.lecture import LectureAttributeUpdate, LectureFileAttributeUpdate
 from src.utils.save_files import delete_file
+from src.crud.template import TemplateRepository
 
 
 class LectureRepository:
@@ -214,7 +215,10 @@ class LectureRepository:
             files = self.db.query(self.file_model).filter(self.file_model.attribute_id == attr.id).all()
 
             for file in files:
-                delete_file(file.file_path)
+                temp_repo = TemplateRepository(self.db)
+                temp_repo.init_lecture_model()
+                if not temp_repo.check_exist_lecture_file(file.file_path):
+                    delete_file(file.file_path)
                 self.db.delete(file)
 
         self.db.delete(attr)

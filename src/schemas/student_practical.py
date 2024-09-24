@@ -61,11 +61,11 @@ class StudentAnswerBase(BaseModel):
 
 
 class StudentAnswerDetail(StudentAnswerBase):
-    answer_id: PositiveInt
+    answer_id: int = None
 
 
 class StudentAnswersDetail(StudentAnswerBase):
-    answer_ids: List[PositiveInt]
+    answer_ids: List[int] = None
 
 
 class StudentMatchingDetail(StudentAnswerBase):
