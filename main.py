@@ -19,6 +19,8 @@ from src.api_routers.student_exam import router as student_exam_router
 from src.api_routers.student_test import router as student_test_router
 from src.api_routers.test import router as test_router
 from src.api_routers.user import router as user_router
+from src.api_routers.template import router as template_router
+from src.api_routers.notes import router as note_router
 from src.config import API_PREFIX
 
 http_bearer = HTTPBearer(auto_error=False)
@@ -61,6 +63,13 @@ app.include_router(
 )
 app.include_router(
     chat_router, prefix=API_PREFIX, tags=["Chat"]
+)
+app.include_router(
+    template_router, prefix=API_PREFIX, tags=["Template"], dependencies=[Depends(http_bearer)]
+)
+
+app.include_router(
+    note_router, prefix=API_PREFIX, tags=["Note"], dependencies=[Depends(http_bearer)]
 )
 
 app.add_middleware(
