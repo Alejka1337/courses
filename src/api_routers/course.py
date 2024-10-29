@@ -26,7 +26,10 @@ from src.schemas.course import (
 )
 from src.session import get_db
 from src.utils.decode_code import decode_access_token
-from src.utils.exceptions import CourseNotFoundException, PermissionDeniedException
+from src.utils.exceptions import (
+    CourseNotFoundException,
+    PermissionDeniedException
+)
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_file
 
@@ -46,7 +49,7 @@ async def create_course(
         if icon_data:
             for item in icon_data.icons:
                 repository.create_course_icon(course_id=course.id, icon_data=item)
-        celery_tasks.add_new_course_notification.delay(course.id)
+
         return course
     else:
         raise PermissionDeniedException()
@@ -62,6 +65,13 @@ async def update_course(
     if user.is_moder:
         repository = CourseRepository(db=db)
         course = repository.select_base_course_by_id(course_id=course_id)
+
+        if course.title != data.title or course.image_path != data.image_path:
+            celery_tasks.update_stripe_product.delay(course.id, data.title, data.image_path)
+
+        if course.price != data.price:
+            celery_tasks.update_stripe_price.delay(course.id, data.price)
+
         result = repository.update_course(course=course, data=data)
         return result
     else:
@@ -226,6 +236,10 @@ async def publish_course(
         response = lesson_repo.check_validity_lessons(course_id=course_id)
         if response["result"]:
             repository.published_course(course_id=course_id)
+
+        celery_tasks.add_new_course_notification.delay(course_id)
+        celery_tasks.create_stripe_price.delay(course_id)
+
         return response
     else:
         raise PermissionDeniedException()

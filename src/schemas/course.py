@@ -118,3 +118,8 @@ class CourseDetailResponse(CourseResponse):
 
     def model_dump(self, *args, **kwargs):
         return super().model_dump(exclude_none=True)
+
+
+class CourseCart(BaseModel):
+    student_id: int
+    payment_items: list[int]

@@ -171,3 +171,23 @@ class CourseRepository:
         course_ids = [course_id for course_id, count in popular_course_ids]
         popular_courses = self.db.query(self.course_model).filter(self.course_model.id.in_(course_ids)).all()
         return popular_courses
+
+    def select_course_by_category(self, category_id):
+        courses = (self.db.query(self.course_model.id.label("id"))
+                   .filter(self.course_model.category_id == category_id, self.course_model.is_published)
+                   .all())
+
+        result = [course.id for course in courses]
+        return result
+
+    def select_cart_total_sum(self, courses_ids: list[int]) -> float:
+        db_rows = (self.db.query(self.course_model.price.label("price"))
+                   .filter(self.course_model.id.in_(courses_ids))
+                   .all())
+
+        total = 0
+        for row in db_rows:
+            total += row.price
+
+        return total
+

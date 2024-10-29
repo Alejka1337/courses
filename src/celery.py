@@ -15,6 +15,7 @@ from src.crud.exam import ExamRepository
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import LessonRepository
 from src.crud.notifications import NotificationRepository
+from src.crud.stripe import StripeCourseRepository
 from src.crud.student_course import (
     select_student_course_db,
     select_students_whose_bought_courses,
@@ -36,7 +37,10 @@ from src.crud.user import UserRepository
 from src.enums import LessonStatus, LessonType
 from src.schemas.practical import ExamConfigUpdate
 from src.session import SessionLocal
-from src.utils.activate_code import generate_activation_code, generate_reset_code
+from src.utils.activate_code import (
+    generate_activation_code,
+    generate_reset_code
+)
 from src.utils.lecture_text import create_lecture_text
 from src.utils.notifications import (
     create_notification_text_for_add_new_course,
@@ -44,6 +48,14 @@ from src.utils.notifications import (
 )
 from src.utils.save_files import delete_files_in_directory
 from src.utils.smtp import send_mail_with_code
+from src.utils.stripe_logic import (
+    create_new_product,
+    create_new_price,
+    update_product,
+    update_price,
+    update_product_price
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -323,6 +335,45 @@ class CeleryTasks:
             access_token=access_token,
             refresh_token=refresh_token,
             exp_token=exp_token
+        )
+
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
+    def create_stripe_price(self, course_id):
+        course_repository = CourseRepository(db=self.db)
+        course = course_repository.select_base_course_by_id(course_id=course_id)
+
+        image = course.image_path if course.image_path else None
+        name = course.title
+        price = course.price
+
+        product_id = create_new_product(name=name, image_path=image)
+        stripe_data = create_new_price(price=price, stripe_product_id=product_id)
+        stripe_data["course_id"] = course_id
+
+        stripe_course_repo = StripeCourseRepository(db=self.db)
+        stripe_course_repo.create_stripe_product(stripe_data)
+
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
+    def update_stripe_product(self, course_id, title, image_path):
+        stripe_course_repo = StripeCourseRepository(db=self.db)
+        stripe_product_id = stripe_course_repo.select_stripe_product_id(course_id=course_id)
+        update_product(stripe_product_id=stripe_product_id, new_name=title, new_image_path=image_path)
+
+    @celery_app.task(bind=True, base=DatabaseTask, queue='default')
+    def update_stripe_price(self, course_id, price):
+        stripe_course_repo = StripeCourseRepository(db=self.db)
+        stripe_product_id = stripe_course_repo.select_stripe_product_id(course_id=course_id)
+        stripe_price_id = stripe_course_repo.select_stripe_price_id(course_id=course_id)
+
+        stripe_data = create_new_price(price=price, stripe_product_id=stripe_product_id)
+        new_stripe_price_id = stripe_data["stripe_price_id"]
+
+        update_product_price(stripe_product_id=stripe_product_id, stripe_price_id=new_stripe_price_id)
+        update_price(stripe_price_id=stripe_price_id)
+
+        stripe_course_repo.update_stripe_price_id(
+            course_id=course_id,
+            stripe_price_id=new_stripe_price_id
         )
 
 

@@ -68,3 +68,6 @@ class CategoryRepository:
     def search_category(self, query: str) -> List[Type[T]]:
         regex_query = fr"\y{query}.*"
         return self.db.query(self.model).filter(self.model.title.op('~*')(regex_query)).all()
+
+    def select_category_discount(self, category_id):
+        return self.db.query(self.model.discount).filter(self.model.id == category_id).scalar()

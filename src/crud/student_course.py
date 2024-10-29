@@ -87,3 +87,16 @@ def select_students_whose_bought_courses(db: Session, course_id: int):
             .group_by(StudentCourseAssociation.student_id)
             .having(func.count(StudentCourseAssociation.course_id) == len(courses_ids_list))
             .all())
+
+
+def check_bought_course(db: Session, student_id: int, courses_ids: list[int]):
+    for course_id in courses_ids:
+        res = (db.query(StudentCourseAssociation)
+               .filter(StudentCourseAssociation.student_id == student_id)
+               .filter(StudentCourseAssociation.course_id == course_id)
+               .first())
+
+        if res is None:
+            return False
+
+    return True
