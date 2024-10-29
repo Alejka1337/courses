@@ -32,7 +32,7 @@ def save_first_chat_message_db(db: Session, message: str, sender_id: int, chat_i
     return new_message
 
 
-def save_chat_message_db(db: Session, message: str, sender_id: int, chat_id: int, recipient_id: int):
+def save_chat_message_db(db: Session, message: str, sender_id: int, chat_id: int, recipient_id: int | None = None):
     new_message = ChatMessageOrm(
         message=message,
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -107,7 +107,7 @@ def select_recipient_id(db: Session, chat_id: int):
     res = (db.query(ChatMessageOrm)
            .filter(ChatMessageOrm.chat_id == chat_id,
                    ChatMessageOrm.recipient_type == MessageSenderType.admin.value,
-                   ChatMessageOrm.recipient_id.is_(not None))
+                   ChatMessageOrm.recipient_id.isnot(None))
            .first())
     return res.recipient_id
 
@@ -152,13 +152,14 @@ def check_active_chat(db: Session, user_id: int):
 
 def update_recipient_db(db: Session, chat_id: int, recipient_id: int):
     messages = (db.query(ChatMessageOrm)
-                .filter(ChatMessageOrm.chat_id == chat_id,
-                        ChatMessageOrm.sender_type == MessageSenderType.student.value,
-                        ChatMessageOrm.recipient_id.is_(None))
+                .filter(ChatMessageOrm.chat_id == chat_id)
+                .filter(ChatMessageOrm.sender_type == MessageSenderType.student.value)
+                .filter(ChatMessageOrm.recipient_id.is_(None))
                 .all())
 
     for message in messages:
         message.recipient_id = recipient_id
+
     db.commit()
 
 

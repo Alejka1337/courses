@@ -7,8 +7,7 @@ from src.models import ChatMessageOrm
 
 
 class ChatManager:
-    def __init__(self):
-        self.connections = {}
+    connections = {}
 
     @staticmethod
     def create_student_connection(websocket: WebSocket, user_id: int) -> dict:
@@ -23,22 +22,23 @@ class ChatManager:
     def add_connection(self, chat_id: int, user_connection: dict) -> None:
         if chat_id not in self.connections:
             self.connections[chat_id] = user_connection
+
         else:
-            self.connections[chat_id].update(user_connection)
+            if "student" in user_connection:
+                self.connections[chat_id].setdefault("student", user_connection["student"])
+                self.connections[chat_id]["student_websocket"] = user_connection["student_websocket"]
+                self.connections[chat_id]["student_id"] = user_connection["student_id"]
+
+            elif "moder" in user_connection:
+                self.connections[chat_id].setdefault("moder", user_connection["moder"])
+                self.connections[chat_id]["moder_websocket"] = user_connection["moder_websocket"]
+                self.connections[chat_id]["moder_id"] = user_connection["moder_id"]
 
     def check_moder_connection(self, chat_id: int) -> bool:
-        chat = self.connections[chat_id]
-        if chat.get("moder"):
-            return True
-        else:
-            return False
+        return "moder" in self.connections.get(chat_id, {})
 
     def check_student_connection(self, chat_id: int) -> bool:
-        chat = self.connections[chat_id]
-        if chat.get("student"):
-            return True
-        else:
-            return False
+        return "student" in self.connections.get(chat_id, {})
 
     def get_moder_id(self, chat_id: int) -> int:
         chat = self.connections[chat_id]
@@ -50,14 +50,18 @@ class ChatManager:
 
     async def send_message(self, message: dict, chat_id: int, recipient: str) -> None:
         chat = self.connections[chat_id]
-        if recipient == "student":
+        if recipient == "student" and "student_websocket" in chat:
             await chat["student_websocket"].send_json(message)
-        else:
+
+        if recipient == "moder" and "moder_websocket" in chat:
             await chat["moder_websocket"].send_json(message)
 
     async def disconnect_chat(self, chat_id: int) -> None:
         chat = self.connections[chat_id]
-        await chat["student_websocket"].close()
+
+        if chat.get("student_websocket"):
+            await chat["student_websocket"].close()
+
         if chat.get("moder_websocket"):
             await chat["moder_websocket"].close()
 
@@ -123,9 +127,14 @@ def get_message_data(message: ChatMessageOrm) -> dict:
         "recipient_id": message.recipient_id,
         "recipient_type": message.recipient_type.value,
         "files": [
-            {"file_path": file.file_path, "file_type": file.file_type,
-             "file_name": file.file_name, "file_size": file.file_size}
-            for file in message.files if message.files]
+            {
+                "file_path": file.file_path,
+                "file_type": file.file_type,
+                "file_name": file.file_name,
+                "file_size": file.file_size
+            }
+            for file in message.files if message.files
+        ]
     }
 
     return message_data

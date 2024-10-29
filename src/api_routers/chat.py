@@ -1,4 +1,5 @@
 import logging
+import asyncio
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.exceptions import WebSocketException
@@ -8,18 +9,12 @@ from sqlalchemy.orm import Session
 from src.crud.chat import (
     check_active_chat,
     initialization_chat_db,
-    save_chat_message_db,
     save_first_chat_message_db,
     save_message_file_db,
-    save_message_files_db,
-    save_moder_message_db,
     select_chat_db,
-    select_last_message_db,
     select_new_chat_messages_db,
-    select_recipient_id,
-    select_student_recipient_db,
     update_chat_status_db,
-    update_recipient_db,
+    update_recipient_db
 )
 from src.enums import ChatStatusType, StaticFileType
 from src.models import UserOrm
@@ -28,11 +23,18 @@ from src.session import get_db
 from src.utils.chat_manager import (
     ChatManager,
     serialize_messages,
-    serialize_new_message,
 )
+
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_file
+from src.utils.chat_commands import (
+    NewMessageHandler,
+    RejectMessageHandler,
+    ApproveMessageHandler,
+    CloseChatMessageHandler
+)
+
 
 router = APIRouter(prefix="/chat")
 chat_manager = ChatManager()
@@ -88,160 +90,171 @@ async def upload_chat_file(file: UploadFile = File(...)):
     }
 
 
-@router.websocket("/{chat_id}/{token}")
+@router.websocket("/user/{chat_id}/{token}")
 async def user_chat(
         chat_id: int,
         token: str,
         websocket: WebSocket,
         db: Session = Depends(get_db)
 ):
-    user = get_current_user(db=db, access_token=token)
-    chat = select_chat_db(db=db, chat_id=chat_id)
+    user = get_current_user(
+        db=db,
+        access_token=token
+    )
 
-    if user.is_student:
-        student_connection = chat_manager.create_student_connection(websocket=websocket, user_id=user.id)
-        chat_manager.add_connection(chat_id=chat_id, user_connection=student_connection)
-        try:
-            await websocket.accept()
+    chat = select_chat_db(
+        db=db,
+        chat_id=chat_id
+    )
 
-            messages = select_new_chat_messages_db(db=db, chat_id=chat_id)
-            json_messages = serialize_messages(messages=messages, db=db)
-            await websocket.send_json(json_messages)
+    student_connection = chat_manager.create_student_connection(
+        websocket=websocket,
+        user_id=user.id
+    )
+    chat_manager.add_connection(
+        chat_id=chat_id,
+        user_connection=student_connection
+    )
 
-            while True:
-                data = await websocket.receive_json()
+    try:
+        await websocket.accept()
 
-                if data.get("type") == "new-message":
+        messages = select_new_chat_messages_db(
+            db=db,
+            chat_id=chat_id
+        )
 
-                    if chat.status == ChatStatusType.new.value:
-                        new_message = save_first_chat_message_db(
-                            db=db, message=data["message"], sender_id=user.id, chat_id=chat_id
-                        )
+        json_messages = serialize_messages(
+            messages=messages,
+            db=db
+        )
+        await websocket.send_json(json_messages)
 
-                        if data.get("files"):
-                            save_message_files_db(db=db, files=data["files"], message_id=new_message.id)
+        while True:
+            data = await websocket.receive_json()
 
-                        last_message = select_last_message_db(db=db, message_id=new_message.id)
-                        json_message = serialize_new_message(db=db, message=last_message)
-                        await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="student")
+            if data.get("type") == "new-message":
+                handler = NewMessageHandler(
+                    connection_manager=chat_manager,
+                    current_chat=chat,
+                    data=data,
+                    user=user,
+                    db=db
+                )
 
-                    if chat.status == ChatStatusType.active.value:
-                        flag = chat_manager.check_moder_connection(chat_id=chat_id)
+                await handler.handle_message()
 
-                        if flag:
-                            moder_id = chat_manager.get_moder_id(chat_id=chat_id)
-                            new_message = save_chat_message_db(
-                                db=db, message=data["message"], sender_id=user.id,
-                                chat_id=chat_id, recipient_id=moder_id
-                            )
+            if data.get("type") == "approve":
+                handler = ApproveMessageHandler(
+                    connection_manager=chat_manager,
+                    current_chat=chat,
+                    data=data,
+                    user=user,
+                    db=db
+                )
 
-                            if data.get("files"):
-                                save_message_files_db(db=db, files=data["files"], message_id=new_message.id)
+                await handler.handle_message()
+                break
 
-                            last_message = select_last_message_db(db=db, message_id=new_message.id)
-                            json_message = serialize_new_message(db=db, message=last_message)
-                            await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="student")
-                            await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="moder")
+            if data.get("type") == "reject":
+                handler = RejectMessageHandler(
+                    connection_manager=chat_manager,
+                    current_chat=chat,
+                    data=data,
+                    user=user,
+                    db=db
+                )
 
-                        else:
-                            moder_id = select_recipient_id(db=db, chat_id=chat_id)
-                            new_message = save_chat_message_db(db=db, message=data["message"], sender_id=user.id,
-                                                               chat_id=chat_id, recipient_id=moder_id)
-                            if data.get("files"):
-                                save_message_files_db(db=db, files=data["files"], message_id=new_message.id)
+                await handler.handle_message()
 
-                            last_message = select_last_message_db(db=db, message_id=new_message.id)
-                            json_message = serialize_new_message(db=db, message=last_message)
-                            await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="student")
+    except WebSocketDisconnect as e:
+        print(f"Except – {e}")
+    finally:
+        chat_manager.delete_student_connection(chat_id=chat_id)
 
-                elif data.get("type") == "approve":
-                    message = {"data": {"message": "chat closed"}, "type": "approve"}
-                    update_chat_status_db(db=db, chat_id=chat_id, status=ChatStatusType.archive.value)
-                    await chat_manager.send_message(message=message, chat_id=chat_id, recipient="student")
 
-                    flag = chat_manager.check_moder_connection(chat_id=chat_id)
+@router.websocket("/admin/{chat_id}/{token}")
+async def moder_chat(
+        chat_id: int,
+        token: str,
+        websocket: WebSocket,
+        db: Session = Depends(get_db)
+):
+    user = get_current_user(
+        db=db,
+        access_token=token
+    )
 
-                    if flag:
-                        await chat_manager.send_message(message=message, chat_id=chat_id, recipient="moder")
+    chat = select_chat_db(
+        db=db,
+        chat_id=chat_id
+    )
 
-                    await chat_manager.disconnect_chat(chat_id=chat_id)
-                    break
+    if chat.status == ChatStatusType.new.value:
+        update_recipient_db(
+            db=db,
+            chat_id=chat_id,
+            recipient_id=user.id
+        )
+        update_chat_status_db(
+            db=db,
+            chat_id=chat_id,
+            status=ChatStatusType.active.value
+        )
 
-                elif data.get("type") == "reject":
-                    message = {"data": {"message": "chat staying active"}, "type": "reject"}
-                    await chat_manager.send_message(message=message, chat_id=chat_id, recipient="student")
-                    flag = chat_manager.check_moder_connection(chat_id=chat_id)
+    moder_connection = chat_manager.create_moder_connection(
+        websocket=websocket,
+        user_id=user.id
+    )
 
-                    if flag:
-                        await chat_manager.send_message(message=message, chat_id=chat_id, recipient="moder")
+    chat_manager.add_connection(
+        chat_id=chat_id,
+        user_connection=moder_connection
+    )
 
-        except WebSocketDisconnect as e:
-            print(f"Except – {e}")
-        finally:
-            chat_manager.delete_student_connection(chat_id=chat_id)
+    try:
+        await websocket.accept()
 
-    else:
-        if chat.status == ChatStatusType.new.value:
-            update_recipient_db(db=db, chat_id=chat_id, recipient_id=user.id)
-            update_chat_status_db(db=db, chat_id=chat_id, status=ChatStatusType.active.value)
-            # message = {"type": "manager joined"}
-            # await chat_manager.send_message(message=message, chat_id=chat_id, recipient="student")
+        if chat.status == ChatStatusType.active.value and check_active_chat(db=db, user_id=user.id):
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Other admin helping this student"
+            )
 
-        moder_connection = chat_manager.create_moder_connection(websocket=websocket, user_id=user.id)
-        chat_manager.add_connection(chat_id=chat_id, user_connection=moder_connection)
-        try:
-            await websocket.accept()
+        messages = select_new_chat_messages_db(db=db, chat_id=chat_id)
+        json_messages = serialize_messages(messages=messages, db=db)
+        await websocket.send_json(json_messages)
 
-            if chat.status == ChatStatusType.active.value and check_active_chat(db=db, user_id=user.id):
-                raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,
-                                         reason="Other admin helping this student")
+        while True:
+            data = await websocket.receive_json()
 
-            messages = select_new_chat_messages_db(db=db, chat_id=chat_id)
-            json_messages = serialize_messages(messages=messages, db=db)
-            await websocket.send_json(json_messages)
+            if data.get("type") == "new-message":
+                handler = NewMessageHandler(
+                    connection_manager=chat_manager,
+                    current_chat=chat,
+                    data=data,
+                    user=user,
+                    db=db
+                )
 
-            while True:
-                data = await websocket.receive_json()
+                await handler.handle_message()
 
-                if data.get("type") == "new-message":
-                    flag = chat_manager.check_student_connection(chat_id=chat_id)
+            if data.get("type") == "close-chat":
+                handler = CloseChatMessageHandler(
+                    connection_manager=chat_manager,
+                    current_chat=chat,
+                    data=data,
+                    user=user,
+                    db=db
+                )
 
-                    if flag:
-                        student_id = chat_manager.get_student_id(chat_id=chat_id)
-                        new_message = save_moder_message_db(
-                            db=db, message=data["message"], sender_id=user.id, chat_id=chat_id, recipient_id=student_id
-                        )
+                await handler.handle_message()
 
-                        if data.get("files"):
-                            save_message_files_db(db=db, files=data["files"], message_id=new_message.id)
+    except WebSocketDisconnect as e:
+        print(f"Except – {e.code}, {e.reason}")
 
-                        last_message = select_last_message_db(db=db, message_id=new_message.id)
-                        json_message = serialize_new_message(db=db, message=last_message)
-                        await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="moder")
-                        await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="student")
+    except RuntimeError as run_e:
+        print(run_e)
 
-                    else:
-                        student_id = select_student_recipient_db(db=db, chat_id=chat_id)
-                        new_message = save_moder_message_db(
-                            db=db, message=data["message"], sender_id=user.id, chat_id=chat_id, recipient_id=student_id
-                        )
-
-                        if data.get("files"):
-                            save_message_files_db(db=db, files=data["files"], message_id=new_message.id)
-
-                        last_message = select_last_message_db(db=db, message_id=new_message.id)
-                        json_message = serialize_new_message(db=db, message=last_message)
-                        await chat_manager.send_message(message=json_message, chat_id=chat_id, recipient="moder")
-
-                elif data.get("type") == "close-chat":
-                    message = {"data": None, "type": "close-chat"}
-                    await chat_manager.send_message(message=message, chat_id=chat_id, recipient="moder")
-
-                    flag = chat_manager.check_student_connection(chat_id=chat_id)
-                    if flag:
-                        await chat_manager.send_message(message=message, chat_id=chat_id, recipient="student")
-
-        except WebSocketDisconnect as e:
-            print(f"Except – {e.code}, {e.reason}")
-        finally:
-            chat_manager.delete_moder_connection(chat_id=chat_id)
+    finally:
+        chat_manager.delete_moder_connection(chat_id=chat_id)
