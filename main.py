@@ -1,7 +1,7 @@
 import uvicorn
 
 # from debug_toolbar.middleware import DebugToolbarMiddleware
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from fastapi.security import HTTPBearer
@@ -21,6 +21,7 @@ from src.api_routers.test import router as test_router
 from src.api_routers.user import router as user_router
 from src.api_routers.template import router as template_router
 from src.api_routers.notes import router as note_router
+from src.api_routers.stripe import router as stripe_router
 from src.config import API_PREFIX
 
 http_bearer = HTTPBearer(auto_error=False)
@@ -72,6 +73,10 @@ app.include_router(
     note_router, prefix=API_PREFIX, tags=["Note"], dependencies=[Depends(http_bearer)]
 )
 
+app.include_router(
+    stripe_router, prefix=API_PREFIX, tags=["Stripe"]
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -89,6 +94,12 @@ app.add_middleware(
 @app.get("/")
 async def ping():
     return {"message": "I'm working right now"}
+
+
+@app.get("/.well-known/apple-developer-merchantid-domain-association")
+async def verify():
+    with open('.well-known/apple-developer-merchantid-domain-association') as fo:
+        return Response(fo.read(), headers={"mimetype": "text/plain"})
 
 
 if __name__ == "__main__":
