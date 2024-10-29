@@ -332,6 +332,17 @@ class CategoryOrm(Base):
     certificates: Mapped[list["CategoryCertificateOrm"]] = relationship(back_populates="category")
 
 
+class StripeCourseOrm(Base):
+    __tablename__ = "stripe_courses"
+
+    id: Mapped[intpk]
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id"))
+    stripe_product_id: Mapped[str]
+    stripe_price_id: Mapped[str]
+
+    course: Mapped["CourseOrm"] = relationship(back_populates="stripe_data", uselist=False)
+
+
 class CourseOrm(Base):
     __tablename__ = "courses"
 
@@ -367,6 +378,8 @@ class CourseOrm(Base):
 
     icons: Mapped[list["CourseIconOrm"]] = relationship(back_populates="course")
     lessons: Mapped[list["LessonOrm"]] = relationship(back_populates="course")
+
+    stripe_data: Mapped["StripeCourseOrm"] = relationship(back_populates="course")
 
     @hybrid_property
     def total_quantity(self):
