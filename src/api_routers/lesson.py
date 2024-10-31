@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_count_student_course_db
@@ -56,13 +56,13 @@ async def create_lesson(
             new_test = repository.test_repo.create_test(lesson_id=lesson.id)
             response["test_id"] = new_test.id
 
-            celery_tasks.check_correct_score.delay(course_id=data.course_id)
+            tasks.check_correct_score.delay(course_id=data.course_id)
         else:
             exam = repository.exam_repo.create_exam(lesson_id=lesson.id, course_id=data.course_id)
             response["exam_id"] = exam.id
 
         if select_count_student_course_db(db=db, course_id=lesson.course_id) > 0:
-            celery_tasks.create_update_course_notification.delay(lesson.id, lesson.course_id)
+            tasks.create_update_course_notification.delay(lesson.id, lesson.course_id)
 
         return response
 

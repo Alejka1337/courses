@@ -15,7 +15,7 @@ from src.crud.stripe import StripeCourseRepository
 from src.crud.course import CourseRepository
 from src.schemas.course import CourseCart
 from src.crud.student_course import subscribe_student_to_course_db
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.utils.check_discount import WebDiscount, MobileDiscount
 
 
@@ -108,7 +108,6 @@ async def stripe_webhook(
         raise HTTPException(422, detail=str(e))
 
     data = event["data"]["object"]
-    print(event)
     if event["type"] == "checkout.session.completed" or event["type"] == "charge.updated":
         metadata = convert_to_dict(data["metadata"])
         student_id = int(metadata["student_id"])
@@ -122,7 +121,7 @@ async def stripe_webhook(
                     course_id=course_id
                 )
 
-                celery_tasks.create_student_lesson.delay(
+                tasks.create_student_lesson.delay(
                     student_id=student_id,
                     course_id=course_id
                 )

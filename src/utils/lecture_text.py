@@ -1,4 +1,4 @@
-def create_lecture_text(attrs):
+def create_lecture_text(attrs: list[str]):
     lecture_text = ""
 
     for attr in attrs:

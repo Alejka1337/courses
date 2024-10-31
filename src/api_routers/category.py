@@ -13,7 +13,10 @@ from src.schemas.category import (
 )
 from src.session import get_db
 from src.utils.decode_code import decode_access_token
-from src.utils.exceptions import CategoryNotFoundException, PermissionDeniedException
+from src.utils.exceptions import (
+    CategoryNotFoundException,
+    PermissionDeniedException
+)
 from src.utils.get_user import get_current_user
 from src.utils.save_files import save_file
 

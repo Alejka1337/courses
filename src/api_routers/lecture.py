@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.crud.lecture import LectureRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_lesson import (
@@ -60,7 +60,7 @@ async def create_text_attribute(
             links=[]
         )
 
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
         return response
     else:
         raise PermissionDeniedException()
@@ -84,7 +84,7 @@ async def update_text_attribute(
         )
 
         lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
 
         return UpdateAttributeResponse()
 
@@ -133,7 +133,7 @@ async def create_file_attribute(
             links=[]
         )
 
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
         return response
     else:
         raise PermissionDeniedException()
@@ -151,7 +151,7 @@ async def update_file_attribute(
         repository.update_lecture_file_attr(attr_id=attr_id, data=data)
 
         lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
 
         return UpdateAttributeResponse()
     else:
@@ -201,7 +201,7 @@ async def create_files_attribute(
             links=[]
         )
 
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
         return response
 
     else:
@@ -220,7 +220,7 @@ async def update_files_attribute(
         repository.update_lecture_files_attr(attr_id=attr_id, data=data)
 
         lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
 
         return UpdateAttributeResponse()
 
@@ -271,7 +271,7 @@ async def create_images_attribute(
             links=[]
         )
 
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
         return response
 
     else:
@@ -290,7 +290,7 @@ async def update_images_attribute(
         repository.update_lecture_files_attr(attr_id=attr_id, data=data)
 
         lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
 
         return UpdateAttributeResponse()
 
@@ -338,7 +338,7 @@ async def create_link_attribute(
             links=links
         )
 
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
         return response
 
     else:
@@ -357,7 +357,7 @@ async def update_link_attribute(
         repository.update_lecture_links_attr(attr_id=attr_id, data=data)
 
         lecture_id = repository.select_lecture_by_attr_id(attr_id=attr_id)
-        celery_tasks.create_lecture_audio.delay(lecture_id)
+        tasks.create_lecture_audio.delay(lecture_id)
 
         return UpdateAttributeResponse()
 
@@ -396,7 +396,7 @@ async def confirm_lecture(
         next_student_lesson = select_student_lesson_db(db=db, lesson_id=next_lesson.id, student_id=user.student.id)
         set_active_student_lesson_db(db=db, student_lesson=next_student_lesson)
 
-        celery_tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=lesson_id)
+        tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=lesson_id)
         return ConfirmLectureResponse()
     else:
         raise PermissionDeniedException()

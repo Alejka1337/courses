@@ -1,5 +1,4 @@
 import logging
-import asyncio
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from fastapi.exceptions import WebSocketException
@@ -49,39 +48,76 @@ async def initialization_chat(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.is_student:
-        student_id = user.student.id
-        if data.chat_subject:
-            chat = initialization_chat_db(db=db, initiator_id=student_id, chat_subject=data.chat_subject)
-            message = save_first_chat_message_db(db=db, message=data.message, sender_id=user.id, chat_id=chat.id)
-            if data.files:
-                for file in data.files:
-                    save_message_file_db(db=db, message_id=message.id, data=file)
+    if not user.is_student:
+        raise PermissionDeniedException()
 
-            return {"id": chat.id, "status": chat.status, "chat_subject": chat.chat_subject}
+    student_id = user.student.id
 
-        else:
-            words = data.message.split()
-            if len(words) < 3:
-                chat = initialization_chat_db(db=db, initiator_id=student_id, chat_subject=' '.join(words[:len(words)]))
-            else:
-                chat = initialization_chat_db(db=db, initiator_id=user.id, chat_subject=' '.join(words[:3]))
+    if data.chat_subject:
+        chat = initialization_chat_db(
+            db=db,
+            initiator_id=student_id,
+            chat_subject=data.chat_subject
+        )
 
-            message = save_first_chat_message_db(db=db, message=data.message, sender_id=user.id, chat_id=chat.id)
+        message = save_first_chat_message_db(
+            db=db,
+            message=data.message,
+            sender_id=user.id,
+            chat_id=chat.id
+        )
 
-            if data.files:
-                for file in data.files:
-                    save_message_file_db(db=db, message_id=message.id, data=file)
+        if data.files:
+            for file in data.files:
+                save_message_file_db(
+                    db=db,
+                    message_id=message.id,
+                    data=file
+                )
 
-            return {"id": chat.id, "status": chat.status, "chat_subject": chat.chat_subject}
+        return {"id": chat.id, "status": chat.status, "chat_subject": chat.chat_subject}
 
     else:
-        raise PermissionDeniedException()
+        words = data.message.split()
+        if len(words) < 3:
+            chat = initialization_chat_db(
+                db=db,
+                initiator_id=student_id,
+                chat_subject=' '.join(words[:len(words)])
+            )
+
+        else:
+            chat = initialization_chat_db(
+                db=db,
+                initiator_id=user.id,
+                chat_subject=' '.join(words[:3])
+            )
+
+        message = save_first_chat_message_db(
+            db=db,
+            message=data.message,
+            sender_id=user.id,
+            chat_id=chat.id
+        )
+
+        if data.files:
+            for file in data.files:
+                save_message_file_db(
+                    db=db,
+                    message_id=message.id,
+                    data=file
+                )
+
+        return {"id": chat.id, "status": chat.status, "chat_subject": chat.chat_subject}
 
 
 @router.post("/upload/file")
 async def upload_chat_file(file: UploadFile = File(...)):
-    file_path = save_file(file=file, file_type=StaticFileType.chat_file.value)
+    file_path = save_file(
+        file=file,
+        file_type=StaticFileType.chat_file.value
+    )
+
     return {
         "file_path": file_path,
         "file_name": file.filename,

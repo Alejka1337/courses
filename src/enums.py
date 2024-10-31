@@ -1,12 +1,14 @@
 from enum import Enum as EnumType
 
+class BaseEnum(str, EnumType):
+    pass
 
-class UserType(str, EnumType):
+class UserType(BaseEnum):
     student = "student"
     moder = "moder"
 
 
-class LessonType(str, EnumType):
+class LessonType(BaseEnum):
     lecture = "lecture"
     test = "test"
     exam = "exam"
@@ -78,3 +80,11 @@ class StaticFileType(str, EnumType):
     lesson_image = "lesson_image"
     instruction_file = "instruction_file"
     chat_file = "chat_file"
+
+
+class CeleryQueues(BaseEnum):
+    default = "default"
+    tts = "tts"
+    auth = "auth"
+    stripe = "stripe"
+    course = "course"

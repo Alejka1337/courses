@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.crud.student_exam import StudentExamRepository
 from src.crud.student_lesson import (
     confirm_student_practical_db,
@@ -77,12 +77,12 @@ async def submit_exam_attempt(
         )
 
         # celery logic
-        celery_tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        celery_tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        celery_tasks.update_student_course_grade.delay(
+        tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        tasks.update_student_course_grade.delay(
             student_id=data.student_id, lesson_id=data.lesson_id, score=exam_attempt.attempt_score
         )
-        celery_tasks.complete_student_course(lesson_id=data.lesson_id, student_id=data.student_id)
+        tasks.complete_student_course(lesson_id=data.lesson_id, student_id=data.student_id)
 
         return {"Message": f"Your exam was submitted. Score - {exam_attempt.attempt_score}"}
 

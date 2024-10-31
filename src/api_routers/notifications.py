@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.crud.lesson import LessonRepository
 from src.crud.notifications import NotificationRepository
 from src.models import UserOrm
@@ -59,8 +59,8 @@ async def agree_with_notification(
             lesson_title=lesson_info["lesson_title"], lesson_type=lesson_info["lesson_type"]
         )
 
-        celery_tasks.update_student_lessons.delay(student_id=user.student.id, lesson_info=lesson_info)
-        celery_tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=new_lesson.id)
+        tasks.update_student_lessons.delay(student_id=user.student.id, lesson_info=lesson_info)
+        tasks.update_student_course_progress.delay(student_id=user.student.id, lesson_id=new_lesson.id)
         return {"message": "Wait for your course update"}
     else:
         raise PermissionDeniedException()

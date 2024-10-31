@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
 from src.crud.student_course import (
@@ -43,16 +43,19 @@ async def create_course(
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
-    if user.is_moder:
-        repository = CourseRepository(db=db)
-        course = repository.create_course(data)
-        if icon_data:
-            for item in icon_data.icons:
-                repository.create_course_icon(course_id=course.id, icon_data=item)
-
-        return course
-    else:
+    if not user.is_moder:
         raise PermissionDeniedException()
+
+    repository = CourseRepository(db=db)
+    course = repository.create_course(data)
+    if icon_data:
+        for item in icon_data.icons:
+            repository.create_course_icon(
+                course_id=course.id,
+                icon_data=item
+            )
+
+    return course
 
 
 @router.put("/update/{course_id}", response_model=CourseResponse)
@@ -67,10 +70,10 @@ async def update_course(
         course = repository.select_base_course_by_id(course_id=course_id)
 
         if course.title != data.title or course.image_path != data.image_path:
-            celery_tasks.update_stripe_product.delay(course.id, data.title, data.image_path)
+            tasks.update_stripe_product.delay(course.id, data.title, data.image_path)
 
         if course.price != data.price:
-            celery_tasks.update_stripe_price.delay(course.id, data.price)
+            tasks.update_stripe_price.delay(course.id, data.price)
 
         result = repository.update_course(course=course, data=data)
         return result
@@ -237,8 +240,8 @@ async def publish_course(
         if response["result"]:
             repository.published_course(course_id=course_id)
 
-        celery_tasks.add_new_course_notification.delay(course_id)
-        celery_tasks.create_stripe_price.delay(course_id)
+        tasks.add_new_course_notification.delay(course_id)
+        tasks.create_stripe_price.delay(course_id)
 
         return response
     else:

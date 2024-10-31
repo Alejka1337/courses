@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from src.celery import celery_tasks
+from src.celery_tasks import tasks
 from src.crud.category import CategoryRepository
 from src.crud.chat import select_chats_for_moderator
 from src.crud.course import CourseRepository
@@ -81,7 +81,7 @@ async def create_admin(
 
     response = after_auth_response(response_data=response_data)
 
-    celery_tasks.update_user_token_after_login.delay(
+    tasks.update_user_token_after_login.delay(
         user_id=user.id,
         access_token=access_token,
         refresh_token=refresh_token,
@@ -117,7 +117,7 @@ async def create_user(
     )
     user_repository.create_new_student(data=student_data)
 
-    celery_tasks.send_activate_code.delay(user_id=new_user.id, email=form_data.email)
+    tasks.send_activate_code.delay(user_id=new_user.id, email=form_data.email)
 
     return UserRegistrationResponse()
 
@@ -156,7 +156,7 @@ async def login(
 
     response = after_auth_response(response_data=response_data)
 
-    celery_tasks.update_user_token_after_login.delay(
+    tasks.update_user_token_after_login.delay(
         user_id=user.id,
         access_token=access_token,
         refresh_token=refresh_token,
@@ -249,7 +249,7 @@ async def activate_user(
 
         response = after_auth_response(response_data=response_data)
 
-        celery_tasks.activate_user.delay(
+        tasks.activate_user.delay(
             user_id=user.id,
             access_token=access_token,
             refresh_token=refresh_token,
@@ -271,7 +271,7 @@ async def resend_activation_code(
     user = user_repository.select_user_by_username(username=username)
     db_code = user_repository.select_activate_code(user_id=user.id)
     student = user_repository.select_student_by_user_id(user_id=user.id)
-    celery_tasks.resend_activate_code.delay(email=student.email, code=db_code)
+    tasks.resend_activate_code.delay(email=student.email, code=db_code)
     return {"message": "We have sent a confirmation code to your email"}
 
 
@@ -283,7 +283,7 @@ async def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
     if student is None:
         raise EmailNotFoundException()
 
-    celery_tasks.send_reset_pass_code.delay(user_id=student.user_id, email=data.email)
+    tasks.send_reset_pass_code.delay(user_id=student.user_id, email=data.email)
     return {"message": "We have sent a password reset code to your email."}
 
 
@@ -334,7 +334,7 @@ async def resend_password_reset_code(
     user_repository = UserRepository(db=db)
     student = user_repository.select_student_by_email(email=email)
     code = user_repository.select_reset_code(user_id=student.user_id)
-    celery_tasks.resend_reset_pass_code.delay(email=email, code=code[0])
+    tasks.resend_reset_pass_code.delay(email=email, code=code[0])
     return {"message": "We have sent a reset password code to your email"}
 
 
@@ -518,18 +518,18 @@ async def update_studying_time(
         raise PermissionDeniedException()
 
 
-@router.post("/buy-course")
-async def buy_course(
-        data: BuyCourse,
-        user: UserOrm = Depends(get_current_user),
-        db: Session = Depends(get_db)
-):
-    if user.is_student:
-        student_course = subscribe_student_to_course_db(db=db, student_id=user.student.id, course_id=data.course_id)
-        celery_tasks.create_student_lesson.delay(student_id=user.student.id, course_id=data.course_id)
-        return student_course
-    else:
-        raise PermissionDeniedException()
+# @router.post("/buy-course")
+# async def buy_course(
+#         data: BuyCourse,
+#         user: UserOrm = Depends(get_current_user),
+#         db: Session = Depends(get_db)
+# ):
+#     if user.is_student:
+#         student_course = subscribe_student_to_course_db(db=db, student_id=user.student.id, course_id=data.course_id)
+#         tasks.create_student_lesson.delay(student_id=user.student.id, course_id=data.course_id)
+#         return student_course
+#     else:
+#         raise PermissionDeniedException()
 
 
 @router.get("/info/me")
