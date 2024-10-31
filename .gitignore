@@ -167,3 +167,6 @@ cython_debug/
 .DS_Store
 static
 static/
+
+.well-known
+celery_tasks.log
