@@ -55,6 +55,8 @@ def create_metadata(student_id: int, payment_items: list[int]):
 def create_checkout(
         price_ids: list[str],
         metadata: dict,
+        success_url: str,
+        cancel_url: str,
         coupon: str = None
 ):
     line_items = [{"price": price_id, "quantity": 1} for price_id in price_ids]
@@ -64,8 +66,8 @@ def create_checkout(
     if coupon:
         discounts.append({'coupon': coupon})
         checkout = stripe.checkout.Session.create(
-            # success_url=f"{DOMAIN}?status=success_payment&items=5_6",
-            success_url="http://localhost:3000/learning-platform-commerce",
+            success_url=success_url,
+            cancel_url=cancel_url,
             line_items=line_items,
             metadata=metadata,
             mode="payment",
@@ -75,8 +77,8 @@ def create_checkout(
 
     else:
         checkout = stripe.checkout.Session.create(
-            # success_url=f"{DOMAIN}?status=success_payment&items=5_6",
-            success_url="http://localhost:3000/learning-platform-commerce",
+            success_url=success_url,
+            cancel_url=cancel_url,
             line_items=line_items,
             metadata=metadata,
             mode="payment",

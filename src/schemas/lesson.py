@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, PositiveInt, model_validator
+from pydantic import BaseModel, PositiveInt
 
 from src.enums import LessonStatus, LessonType
 
@@ -22,13 +22,15 @@ class LessonResponse(LessonCreate):
 class LessonDetailResponse(LessonResponse):
     count_questions: Optional[int] = None
 
-    # @model_validator(mode="after")
-    # def remove_count_questions_if_not_test_or_exam(cls, instance):
-    #     if instance.type not in {LessonType.test, LessonType.exam}:
-    #         del instance.count_questions
-    #     return instance
-
 
 class LessonAuthResponse(LessonDetailResponse):
     score: Optional[int] = None
     status: Optional[LessonStatus] = None
+
+
+class LessonUpdate(BaseModel):
+    number: Optional[PositiveInt] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    scheduled_time: Optional[PositiveInt] = None
+    image_path: Optional[str] = None

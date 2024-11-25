@@ -9,7 +9,7 @@ from src.crud.lesson import LessonRepository
 from src.crud.student_course import select_count_student_course_db
 from src.enums import LessonType, StaticFileType
 from src.models import UserOrm
-from src.schemas.lesson import LessonCreate
+from src.schemas.lesson import LessonCreate, LessonUpdate
 from src.session import get_db
 from src.utils.exceptions import PermissionDeniedException
 from src.utils.get_user import get_current_user
@@ -93,3 +93,22 @@ async def get_lesson(
         return repository.select_lesson_db(lesson_id=lesson_id, student_id=user.student.id)
     else:
         return repository.select_lesson_db(lesson_id=lesson_id)
+
+
+@router.put("/update/{lesson_id}", response_model=LessonUpdate, response_model_exclude_none=True)
+async def update_lesson(
+        lesson_id: int,
+        data: Annotated[LessonUpdate, Body],
+        db: Session = Depends(get_db),
+        user: UserOrm = Depends(get_current_user)
+):
+    if user.is_moder:
+        repository = LessonRepository(db=db)
+        repository.update_lesson(
+            lesson_id=lesson_id,
+            data=data
+        )
+
+        return data
+    else:
+        raise PermissionDeniedException()

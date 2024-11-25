@@ -131,7 +131,9 @@ class ExamRepository:
                              self.lesson_model.type == LessonType.exam.value)
                      .scalar())
 
-        exam = (self.db.query(self.exam_model.score.label("score"),  self.exam_model.id.label("id"))
+        exam = (self.db.query(self.exam_model.score.label("score"),
+                              self.exam_model.id.label("id"),
+                              self.exam_model.lesson_id.label("lesson_id"))
                 .filter(self.exam_model.lesson_id == lesson_id)
                 .first())
         return exam

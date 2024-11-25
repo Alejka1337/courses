@@ -323,9 +323,9 @@ class CategoryOrm(Base):
     description: Mapped[Optional[str]]
     image_path: Mapped[Optional[str]]
     discount: Mapped[int] = mapped_column(default=10)
-    is_published: Mapped[bool] = mapped_column(default=False)
-    timestamp_add: Mapped[datetime]
-    timestamp_change: Mapped[datetime]
+    is_published: Mapped[bool] = mapped_column(default=False, nullable=True)
+    timestamp_add: Mapped[datetime] = mapped_column(nullable=True)
+    timestamp_change: Mapped[datetime] = mapped_column(nullable=True)
 
     courses: Mapped[list["CourseOrm"]] = relationship(back_populates="category")
     instruction: Mapped["InstructionOrm"] = relationship(back_populates="category")

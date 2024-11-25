@@ -113,6 +113,8 @@ class CourseRepository:
          .filter(self.course_model.id == course_id)
          .update({self.course_model.is_published: True}, synchronize_session=False))
 
+        self.db.commit()
+
     def update_course(self, data: CourseUpdate, course: CourseOrm):
         for key, value in data.dict().items():
             if value:

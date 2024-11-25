@@ -101,9 +101,22 @@ class AttachedIconResponse(BaseModel):
     message: str = "Successful attached"
 
 
+class ExamInfoModel(BaseModel):
+    exam_id: int
+    exam_score: int
+    lesson_id: int
+
+
+class TestInfoModel(BaseModel):
+    test_id: int
+    test_score: int
+    lesson_id: int
+
+
 class PublishCourseResponse(BaseModel):
     message: str
-    result: bool
+    test_info: TestInfoModel | list[TestInfoModel] = None
+    exam_info: ExamInfoModel = None
 
 
 class CourseDetailResponse(CourseResponse):
@@ -123,3 +136,5 @@ class CourseDetailResponse(CourseResponse):
 class CourseCart(BaseModel):
     student_id: int
     payment_items: list[int]
+    success_url: str
+    cancel_url: str

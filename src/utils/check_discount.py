@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.crud.course import CourseRepository
 from src.crud.category import CategoryRepository
-from src.utils.stripe_logic import create_coupon, create_promotion_code
+from src.utils.stripe_logic import create_coupon
 from src.crud.student_course import check_bought_course
 
 
@@ -52,7 +52,7 @@ class WebDiscount(Discount):
             difference = set(category_courses).difference(set(self._cart))
             result = check_bought_course(self._db, self._student_id, list(difference))
 
-            if result is not None:
+            if result:
                 discount = self._category_repo.select_category_discount(course_base.category_id)
                 coupon_id = create_coupon(discount)
                 return {"status": "set_discount", "coupon": coupon_id}
@@ -86,10 +86,9 @@ class MobileDiscount(Discount):
             category_courses = self._course_repo.select_course_by_category(course_base.category_id)
 
             difference = set(category_courses).difference(set(self._cart))
-            print(difference)
             result = check_bought_course(self._db, self._student_id, list(difference))
 
             if result:
-                print(f"Part - {result}")
+
                 discount = self._category_repo.select_category_discount(course_base.category_id)
                 return discount / 100

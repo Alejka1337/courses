@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile, status, Response
 from sqlalchemy.orm import Session
 
 from src.celery_tasks import tasks
@@ -162,13 +162,13 @@ async def get_courses_by_category(
     authorization = request.headers.get("authorization")
     if authorization and authorization.startswith("Bearer") and len(authorization) > 10:
         user = decode_access_token(db=db, access_token=authorization[7:])
+        if user.is_student:
+            courses = repository.select_courses_by_category_id(category_id=category_id)
+            for course in courses:
+                select_student_course_info(db=db, course=course, student_id=user.student.id)
+                select_student_lesson_info(db=db, course=course, student_id=user.student.id)
 
-        courses = repository.select_courses_by_category_id(category_id=category_id)
-        for course in courses:
-            select_student_course_info(db=db, course=course, student_id=user.student.id)
-            select_student_lesson_info(db=db, course=course, student_id=user.student.id)
-
-        return courses
+            return courses
     else:
         return repository.select_courses_by_category_id(category_id=category_id)
 
@@ -227,22 +227,42 @@ async def update_icon(
         raise PermissionDeniedException()
 
 
-@router.put("/publish/{course_id}", response_model=PublishCourseResponse)
+@router.put(
+    "/publish/{course_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=PublishCourseResponse,
+    response_model_exclude_none=True
+)
 async def publish_course(
         course_id: int,
+        response: Response,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):
     if user.is_moder:
         lesson_repo = LessonRepository(db=db)
         repository = CourseRepository(db=db)
-        response = lesson_repo.check_validity_lessons(course_id=course_id)
-        if response["result"]:
+        validation_data = lesson_repo.check_validity_lessons(course_id=course_id)
+
+        if not validation_data["result"]:
+            validation_data.pop("result")
+            response.status_code = status.HTTP_409_CONFLICT
+            return validation_data
+
+        course_base = repository.select_base_course_by_id(course_id=course_id)
+
+        if not course_base.is_published:
             repository.published_course(course_id=course_id)
 
-        tasks.add_new_course_notification.delay(course_id)
-        tasks.create_stripe_price.delay(course_id)
+            tasks.add_new_course_notification.delay(course_id)
+            tasks.create_stripe_price.delay(course_id)
 
-        return response
+            validation_data.pop("result")
+            return validation_data
+        else:
+            return PublishCourseResponse(
+                message="The course has already been published"
+            )
+
     else:
         raise PermissionDeniedException()

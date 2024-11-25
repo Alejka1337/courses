@@ -36,7 +36,7 @@ async def change_card(
     discount_manager = WebDiscount(db=db, cart=data.payment_items, student_id=data.student_id)
     result = discount_manager.check_discount()
 
-    if result["type"] == "coupon":
+    if result is not None and result.get("type") == "coupon":
         coupon = result["coupon"]
 
     metadata = create_metadata(
@@ -47,7 +47,9 @@ async def change_card(
     checkout_link = create_checkout(
         price_ids=price_ids,
         metadata=metadata,
-        coupon=coupon
+        coupon=coupon,
+        success_url=data.success_url,
+        cancel_url=data.cancel_url
     )
 
     return {"link": checkout_link}

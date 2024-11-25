@@ -8,7 +8,7 @@ from src.crud.lecture import LectureRepository
 from src.crud.test import TestRepository
 from src.enums import LessonType
 from src.models import LessonOrm
-from src.schemas.lesson import LessonCreate
+from src.schemas.lesson import LessonCreate, LessonUpdate
 
 
 class LessonRepository:
@@ -95,6 +95,15 @@ class LessonRepository:
 
         self.db.commit()
 
+    def update_lesson(self, lesson_id: int, data: LessonUpdate):
+        lesson = self.db.query(self.lesson_model).filter(self.lesson_model.id == lesson_id).first()
+
+        for key, value in data.dict().items():
+            if value:
+                setattr(lesson, key, value)
+
+        self.db.commit()
+
     def search_lesson(self, query: str):
         regex_query = fr"\y{query}.*"
         return self.db.query(self.lesson_model).filter(self.lesson_model.title.op('~*')(regex_query)).all()
@@ -117,21 +126,57 @@ class LessonRepository:
         exam_orm = self.exam_repo.select_exam_score(course_id=course_id)
 
         if exam_orm is None:
-            return {"result": False, "message": "Create exam before publishing course"}
-
-        if tests_score + exam_orm.score != 200:
-            return {"result": False, "message": "Course max score less than 200"}
+            return {
+                "result": False,
+                "message": "Create exam before publishing course"
+            }
 
         tests = self.test_repo.select_tests_in_course(course_id=course_id)
         for test in tests:
             test_question_scores = self.test_repo.select_sum_questions_score(test_id=test.id)
             if test_question_scores != test.score:
-                return {"result": False, "message": f"Sum for all question in test {test.id} not equal {test.score}"}
+                return {
+                    "result": False,
+                    "message": f"Sum for all question in test not equal its score",
+                    "test_info": {
+                        "test_id": test.id,
+                        "test_score": test.score,
+                        "lesson_id": test.lesson_id
+                    }
+                }
 
         exam_question_score = self.exam_repo.select_sum_questions_score(exam_id=exam_orm.id)
         if exam_question_score != exam_orm.score:
             return {
                 "result": False,
-                "message": f"Sum for all question in exam {exam_orm.id} not equal {exam_orm.score}"}
+                "message": f"Sum for all question in exam not equal its score",
+                "exam_info": {
+                    "exam_id": exam_orm.id,
+                    "exam_score": exam_orm.score,
+                    "lesson_id": exam_orm.lesson_id
+                }
+            }
+
+        if tests_score + exam_orm.score != 200:
+            return {
+                "result": False,
+                "message": "Course score not equals 200",
+                "exam_info": {
+                    "exam_id": exam_orm.id,
+                    "exam_score": exam_orm.score,
+                    "lesson_id": exam_orm.lesson_id
+                },
+                "test_info": [
+                    {
+                        "test_id": test.id,
+                        "test_score": test.score,
+                        "lesson_id": test.lesson_id
+                    } for test in tests
+                ]
+            }
+
         else:
-            return {"result": True, "message": "Course successfully published"}
+            return {
+                "result": True,
+                "message": "Course successfully published"
+            }

@@ -20,9 +20,9 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(CategoryCreate):
     id: PositiveInt
     discount: PositiveInt
-    is_published: bool
-    timestamp_add: datetime
-    timestamp_change: datetime
+    is_published: Optional[bool] = None
+    timestamp_add: Optional[datetime] = None
+    timestamp_change: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
