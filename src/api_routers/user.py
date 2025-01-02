@@ -31,7 +31,10 @@ from src.schemas.user import (
     UserUpdate,
 )
 from src.session import get_db
-from src.utils.decode_code import decode_and_check_refresh_token, decode_google_token
+from src.utils.decode_code import (
+    decode_and_check_refresh_token,
+    decode_google_token
+)
 from src.utils.exceptions import (
     CookieNotFoundException,
     EmailDoesExistException,

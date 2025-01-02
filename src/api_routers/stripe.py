@@ -9,7 +9,8 @@ from src.utils.stripe_logic import (
     webhook_event,
     create_payment_intent,
     get_customer,
-    create_ephemeral_key
+    create_ephemeral_key,
+    retrieve_session
 )
 from src.crud.stripe import StripeCourseRepository
 from src.crud.course import CourseRepository
@@ -93,6 +94,13 @@ async def change_cart_mobile(
         "customer": customer_id,
         "ephemeralKey": ephemeral_key
     }
+
+
+@router.get("/success")
+async def stripe_success(
+        session_id: str
+):
+    return retrieve_session(session_id)
 
 
 @router.post("/webhook")

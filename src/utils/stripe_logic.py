@@ -83,11 +83,13 @@ def create_checkout(
             metadata=metadata,
             mode="payment",
             customer_email="dmitrjialekseev16@gmail.com",
-            allow_promotion_codes=True
-            # discounts=discounts,
         )
 
     return checkout.url
+
+
+def retrieve_session(session_id):
+    return stripe.checkout.Session.retrieve(session_id).metadata.items()
 
 
 def webhook_event(body, stripe_signature):
