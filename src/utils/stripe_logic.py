@@ -136,3 +136,10 @@ def create_ephemeral_key(customer):
     )
 
     return key.secret
+
+
+def retrieve_payment_intent(payment_intent):
+    secret_start = payment_intent.find('_secret_')
+    payment_intent = payment_intent[:secret_start]
+    data = stripe.PaymentIntent.retrieve(payment_intent)
+    return data.metadata

@@ -157,7 +157,7 @@ class LessonRepository:
                 }
             }
 
-        if tests_score + exam_orm.score != 200:
+        if tests_score and tests_score + exam_orm.score != 200:
             return {
                 "result": False,
                 "message": "Course score not equals 200",

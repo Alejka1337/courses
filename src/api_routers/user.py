@@ -10,14 +10,12 @@ from src.crud.category import CategoryRepository
 from src.crud.chat import select_chats_for_moderator
 from src.crud.course import CourseRepository
 from src.crud.lesson import LessonRepository
-from src.crud.student_course import subscribe_student_to_course_db
 from src.crud.user import UserRepository
 from src.crud.notes import NotesRepository
 from src.enums import StaticFileType
 from src.models import UserOrm
 from src.schemas.user import (
     AuthResponse,
-    BuyCourse,
     LoginWithGoogle,
     ResetPassword,
     SetNewPassword,
@@ -31,6 +29,7 @@ from src.schemas.user import (
     UserUpdate,
 )
 from src.session import get_db
+from src.utils.email_regex import is_email
 from src.utils.decode_code import (
     decode_and_check_refresh_token,
     decode_google_token
@@ -112,8 +111,8 @@ async def create_user(
     new_user = user_repository.create_new_user(username=form_data.username, password=form_data.password)
     student_data = StudentCreate(
         user_id=new_user.id,
-        name=form_data.name,
-        surname=form_data.surname,
+        name=form_data.name if form_data.name else "",
+        surname=form_data.surname if form_data.surname else "",
         phone=form_data.phone,
         country=form_data.country,
         email=form_data.email
@@ -131,10 +130,18 @@ async def login(
         db: Session = Depends(get_db),
 ):
     user_repository = UserRepository(db=db)
-    user = user_repository.select_user_by_username(username=form_data.username)
 
-    if not user:
-        raise InvalidUsernameException()
+    if is_email(form_data.username):
+        student = user_repository.select_student_by_email(email=form_data.username)
+        if not student:
+            raise InvalidUsernameException()
+
+        user = user_repository.select_user_by_id(user_id=student.user_id)
+
+    else:
+        user = user_repository.select_user_by_username(username=form_data.username)
+        if not user:
+            raise InvalidUsernameException()
 
     if user.is_active is False:
         raise NotActivateAccountException()
@@ -519,20 +526,6 @@ async def update_studying_time(
         return {"message": "Success"}
     else:
         raise PermissionDeniedException()
-
-
-# @router.post("/buy-course")
-# async def buy_course(
-#         data: BuyCourse,
-#         user: UserOrm = Depends(get_current_user),
-#         db: Session = Depends(get_db)
-# ):
-#     if user.is_student:
-#         student_course = subscribe_student_to_course_db(db=db, student_id=user.student.id, course_id=data.course_id)
-#         tasks.create_student_lesson.delay(student_id=user.student.id, course_id=data.course_id)
-#         return student_course
-#     else:
-#         raise PermissionDeniedException()
 
 
 @router.get("/info/me")

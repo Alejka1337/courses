@@ -74,12 +74,12 @@ class UsernameDoesExistException(HTTPException):
 
 class InvalidUsernameException(HTTPException):
     def __init__(self):
-        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username")
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid username or email")
 
 
 class InvalidPasswordException(HTTPException):
     def __init__(self):
-        super().__init__(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid password")
 
 
 class InvalidActivateCodeException(HTTPException):

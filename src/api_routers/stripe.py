@@ -10,13 +10,14 @@ from src.utils.stripe_logic import (
     create_payment_intent,
     get_customer,
     create_ephemeral_key,
-    retrieve_session
+    retrieve_session,
+    retrieve_payment_intent
 )
+from src.celery_tasks import tasks
 from src.crud.stripe import StripeCourseRepository
 from src.crud.course import CourseRepository
 from src.schemas.course import CourseCart
-from src.crud.student_course import subscribe_student_to_course_db
-from src.celery_tasks import tasks
+from src.crud.student_course import subscribe_student_to_course_db, create_student_lesson
 from src.utils.check_discount import WebDiscount, MobileDiscount
 
 
@@ -55,6 +56,30 @@ async def change_card(
 
     return {"link": checkout_link}
 
+
+@router.post("/course-subscribe")
+async def course_subscribe(
+        payment_intent: str,
+        db: Session = Depends(get_db),
+):
+    metadata = retrieve_payment_intent(payment_intent)
+    student_id = int(metadata["student_id"])
+    for key, value in metadata.items():
+        if key.startswith("item"):
+            course_id = int(value)
+            subscribe_student_to_course_db(
+                db=db,
+                student_id=student_id,
+                course_id=course_id
+            )
+
+            create_student_lesson(
+                db=db,
+                student_id=student_id,
+                course_id=course_id
+            )
+
+    return {"status": "Successfully subscribed"}
 
 @router.post("/mobile/cart")
 async def change_cart_mobile(
@@ -118,7 +143,7 @@ async def stripe_webhook(
         raise HTTPException(422, detail=str(e))
 
     data = event["data"]["object"]
-    if event["type"] == "checkout.session.completed" or event["type"] == "charge.updated":
+    if event["type"] == "checkout.session.completed":
         metadata = convert_to_dict(data["metadata"])
         student_id = int(metadata["student_id"])
 

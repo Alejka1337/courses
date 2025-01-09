@@ -1,10 +1,10 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased
 
-from src.crud.student_lesson import select_student_lesson_db
-from src.enums import CourseStatus
+from src.crud.student_lesson import select_student_lesson_db, create_student_lesson_db
+from src.enums import CourseStatus, LessonStatus, LessonType
 from src.models import CourseOrm, StudentCourseAssociation
-
+from src.crud.lesson import LessonRepository
 
 def select_student_course_info(db: Session, student_id: int, course: CourseOrm):
     student_course = (db.query(StudentCourseAssociation.grade.label("grade"),
@@ -100,3 +100,44 @@ def check_bought_course(db: Session, student_id: int, courses_ids: list[int]):
             return False
 
     return True
+
+
+def create_student_lesson(
+        db: Session,
+        student_id: int,
+        course_id: int
+):
+    lesson_repo = LessonRepository(db=db)
+    lessons = lesson_repo.select_lessons_by_course_db(course_id=course_id)
+
+    for index, lesson in enumerate(lessons):
+        if lesson.number == 1:
+            create_student_lesson_db(
+                db=db,
+                student_id=student_id,
+                lesson_id=lesson.id,
+                status=LessonStatus.active
+            )
+
+        elif lesson.type == LessonType.test.value or lesson.type == LessonType.exam.value:
+            create_student_lesson_db(
+                db=db,
+                student_id=student_id,
+                lesson_id=lesson.id,
+                status=LessonStatus.blocked
+            )
+        else:
+            if any(les.type == LessonType.test.value for les in lessons[:index]):
+                create_student_lesson_db(
+                    db=db,
+                    student_id=student_id,
+                    lesson_id=lesson.id,
+                    status=LessonStatus.blocked
+                )
+            else:
+                create_student_lesson_db(
+                    db=db,
+                    student_id=student_id,
+                    lesson_id=lesson.id,
+                    status=LessonStatus.available
+                )

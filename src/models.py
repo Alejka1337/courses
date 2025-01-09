@@ -118,8 +118,8 @@ class StudentOrm(Base):
     __tablename__ = "students"
 
     id: Mapped[intpk]
-    name: Mapped[str]
-    surname: Mapped[str]
+    name: Mapped[Optional[str]]
+    surname: Mapped[Optional[str]]
     email: Mapped[str] = mapped_column(unique=True)
     phone: Mapped[Optional[str]] = mapped_column(unique=True)
     country: Mapped[Optional[str]]
@@ -322,6 +322,7 @@ class CategoryOrm(Base):
     title: Mapped[str] = mapped_column(unique=True)
     description: Mapped[Optional[str]]
     image_path: Mapped[Optional[str]]
+    certificate_info: Mapped[Optional[str]]
     discount: Mapped[int] = mapped_column(default=10)
     is_published: Mapped[bool] = mapped_column(default=False, nullable=True)
     timestamp_add: Mapped[datetime] = mapped_column(nullable=True)

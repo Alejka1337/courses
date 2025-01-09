@@ -8,13 +8,15 @@ class CategoryCreate(BaseModel):
     title: str
     description: str
     image_path: Optional[str] = None
+    certificate_info: Optional[str] = None
 
 
 class CategoryUpdate(BaseModel):
-    title: Optional[str]
-    description: Optional[str]
-    image_path: Optional[str]
-    discount: Optional[PositiveInt]
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image_path: Optional[str] = None
+    discount: Optional[PositiveInt] = None
+    certificate_info: Optional[str] = None
 
 
 class CategoryResponse(CategoryCreate):

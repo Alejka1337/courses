@@ -1,7 +1,8 @@
+import logging
 import uvicorn
 
 # from debug_toolbar.middleware import DebugToolbarMiddleware
-from fastapi import Depends, FastAPI, Response
+from fastapi import Depends, FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from fastapi.security import HTTPBearer
@@ -25,6 +26,17 @@ from src.api_routers.stripe import router as stripe_router
 from src.config import API_PREFIX
 
 http_bearer = HTTPBearer(auto_error=False)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+file_handler = logging.FileHandler("headers.log")
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 app = FastAPI(debug=True, default_response_class=ORJSONResponse)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -77,13 +89,31 @@ app.include_router(
     stripe_router, prefix=API_PREFIX, tags=["Stripe"]
 )
 
+origins = [
+    "http://localhost",
+    "http://localhost:8100",
+    "http://localhost:8101",
+    "https://localhost",
+    "https://vps2.xyz",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "HEAD", "CONNECT"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_request_origin(request: Request, call_next):
+    print(request.url)
+    client = f"{request.client.host}:{request.client.port}"
+    headers = dict(request.headers)
+
+    logger.info(f"Recieve request on {request.url} from client – {client} with headers – {headers}")
+    response = await call_next(request)
+    return response
 
 # app.add_middleware(
 #     DebugToolbarMiddleware,

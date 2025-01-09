@@ -20,6 +20,8 @@ class CategoryRepository:
             title=data.title,
             description=data.description,
             image_path=data.image_path if data.image_path else None,
+            certificate_info=data.certificate_info if data.certificate_info else None,
+            is_published=True,
             timestamp_add=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             timestamp_change=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         )
@@ -42,7 +44,7 @@ class CategoryRepository:
     def update_category(self, data:  CategoryUpdate, category_id: int) -> T:
         category = self.select_category_by_id(category_id=category_id, mode="admin")
 
-        for key, value in data.dict().items():
+        for key, value in data.model_dump().items():
             if value:
                 setattr(category, key, value)
 

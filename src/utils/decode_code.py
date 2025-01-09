@@ -22,7 +22,7 @@ def decode_google_token(token):
         key=GOOGLE_AUTH_SECRET,
         algorithms=['RS256'],
         audience=GOOGLE_AUTH_SECRET,
-        options={"verify_signature": False}
+        options={"verify_signature": False, "verify_at_hash": False}
     )
     return decoded_data
 
