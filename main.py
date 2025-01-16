@@ -95,6 +95,8 @@ origins = [
     "http://localhost:8101",
     "https://localhost",
     "https://vps2.xyz",
+    "http://192.168.0.151:8100/",
+    "http://localhost:3000/",
 ]
 
 app.add_middleware(

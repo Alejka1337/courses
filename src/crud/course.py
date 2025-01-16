@@ -162,17 +162,39 @@ class CourseRepository:
         return self.db.query(self.course_model).filter(self.course_model.title.op('~*')(regex_query)).all()
 
     def select_popular_course(self):
-        popular_course_ids = (self.db.query(
-            self.student_course_model.course_id,
-            func.count(self.student_course_model.course_id).label('course_count'))
-                .group_by(self.student_course_model.course_id)
-                .order_by(func.count(self.student_course_model.course_id).desc())
-                .limit(10)
-                .all())
+        all_courses = (self.db.query(self.course_model)
+                       .filter(self.course_model.is_published)
+                       .options(joinedload(self.course_model.icons))
+                       .options(joinedload(self.course_model.lessons))
+                       .all())
 
-        course_ids = [course_id for course_id, count in popular_course_ids]
-        popular_courses = self.db.query(self.course_model).filter(self.course_model.id.in_(course_ids)).all()
-        return popular_courses
+        course_purchase_counts = dict(
+            self.db.query(
+                self.student_course_model.course_id,
+                func.count(self.student_course_model.course_id).label('purchase_count'))
+            .group_by(self.student_course_model.course_id)
+            .all())
+
+        # Добавить количество покупок для каждого курса и сортировать
+        all_courses_with_counts = [
+            {
+                "course": course,
+                "purchase_count": course_purchase_counts.get(course.id, 0)
+            }
+            for course in all_courses
+        ]
+
+        # Сортировка курсов по количеству покупок (от большего к меньшему)
+        sorted_courses = sorted(
+            all_courses_with_counts,
+            key=lambda x: x["purchase_count"],
+            reverse=True
+        )
+
+        # Извлечь только курсы (если требуется вернуть массив курсов без дополнительной информации)
+        sorted_all_courses = [item["course"] for item in sorted_courses]
+
+        return sorted_all_courses
 
     def select_course_by_category(self, category_id):
         courses = (self.db.query(self.course_model.id.label("id"))
@@ -180,6 +202,15 @@ class CourseRepository:
                    .all())
 
         result = [course.id for course in courses]
+        return result
+
+    def select_courses_name_by_category(self, category_id):
+        courses = (self.db.query(self.course_model.title.label("title"))
+                   .filter(self.course_model.category_id == category_id)
+                   .filter(self.course_model.is_published)
+                   .all())
+
+        result = [course.title for course in courses]
         return result
 
     def select_cart_total_sum(self, courses_ids: list[int]) -> float:

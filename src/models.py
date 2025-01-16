@@ -367,6 +367,8 @@ class CourseOrm(Base):
     intro_text: Mapped[str]
     skills_text: Mapped[str]
     about_text: Mapped[str]
+    about_main_text: Mapped[str] = mapped_column(nullable=True)
+    program_text: Mapped[str] = mapped_column(nullable=True)
 
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
 

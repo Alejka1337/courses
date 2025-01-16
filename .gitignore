@@ -167,6 +167,8 @@ cython_debug/
 .DS_Store
 static
 static/
+templates
+templates/
 
 .well-known
 celery_tasks.log

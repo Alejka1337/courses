@@ -3,6 +3,7 @@ from datetime import datetime
 
 from src.celery_config import DatabaseTask, celery_app
 from src.config import SPEECHES_DIR
+from src.crud.category import CategoryRepository
 from src.crud.certificate import CertificateRepository
 from src.crud.course import CourseRepository
 from src.crud.exam import ExamRepository
@@ -15,7 +16,7 @@ from src.crud.student_course import (
     select_students_whose_bought_courses,
     update_course_present,
     update_course_score,
-    update_course_status,
+    update_course_status, check_competed_category,
 )
 from src.crud.student_lesson import (
     create_student_lesson_db,
@@ -40,6 +41,8 @@ from src.utils.activate_code import (
     generate_activation_code,
     generate_reset_code
 )
+from src.utils.certificate import CertificateWriter
+from src.utils.convert_to_pdf import convert_to_pdf
 from src.utils.lecture_text import create_lecture_text
 from src.utils.notifications import (
     create_notification_text_for_add_new_course,
@@ -271,10 +274,60 @@ class CeleryTasks:
             student_course=student_course
         )
 
+        student = UserRepository(db=self.db).select_student_name_by_id(student_id=student_id)
+        student_name = f"{student.name} {student.surname}"
+        course = CourseRepository(db=self.db).select_base_course_by_id(course_id=lesson.course_id)
+        category_name = CategoryRepository(db=self.db).select_category_name_by_id(category_id=course.category_id)
+
+        writer = CertificateWriter(
+            cert_type='course',
+            student_name=student_name,
+            course_name=course.title,
+            category_name=category_name
+        )
+
+        dir_name, docx_path = writer.write_course_certificate_data()
+        convert_to_pdf(dir_name, docx_path)
+        certificate_path = docx_path.replace('docx', 'pdf')
+
         certificate_repo.create_course_certificate(
+            path=certificate_path,
             student_id=student_id,
             course_id=lesson.course_id
         )
+
+        # check_complete_category
+        res = check_competed_category(
+            db=self.db,
+            student_id=student_id,
+            category_id=course.category_id
+        )
+
+        if res:
+            courses_list = CourseRepository(db=self.db).select_courses_name_by_category(category_id=course.category_id)
+            writer = CertificateWriter(
+                cert_type='category',
+                student_name=student_name,
+                courses_list=[
+                    "Business analytics",
+                    "Operations Management",
+                    "Business Ethics",
+                    "Human Resource Management",
+                    "Business Administration"
+                ],
+                category_name=category_name
+            )
+            dir_name, docx_path = writer.write_category_certificate_data()
+            convert_to_pdf(dir_name, docx_path)
+            certificate_path = docx_path.replace('docx', 'pdf')
+
+            certificate_repo.create_category_certificate(
+                path=certificate_path,
+                student_id=student_id,
+                category_id=course.category_id
+            )
+
+
 
     @celery_app.task(bind=True, base=DatabaseTask, queue=CeleryQueues.tts)
     def create_lecture_audio(

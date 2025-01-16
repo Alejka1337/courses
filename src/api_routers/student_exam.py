@@ -70,19 +70,26 @@ async def submit_exam_attempt(
 ):
     if user.is_student:
         student_exam_repository = StudentExamRepository(db=db)
-        student_lesson = select_student_lesson_db(db=db, student_id=data.student_id, lesson_id=data.lesson_id)
+        student_lesson = select_student_lesson_db(
+            db=db,
+            student_id=data.student_id,
+            lesson_id=data.lesson_id
+        )
         exam_attempt = student_exam_repository.select_attempt_by_id(attempt_id=data.attempt_id)
         confirm_student_practical_db(
-            db=db, score=exam_attempt.attempt_score, attempt=exam_attempt.id, student_lesson=student_lesson
+            db=db,
+            score=exam_attempt.attempt_score,
+            attempt=exam_attempt.id,
+            student_lesson=student_lesson
         )
 
         # celery logic
-        tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        tasks.update_student_course_grade.delay(
-            student_id=data.student_id, lesson_id=data.lesson_id, score=exam_attempt.attempt_score
-        )
-        tasks.complete_student_course(lesson_id=data.lesson_id, student_id=data.student_id)
+        # tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        # tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        # tasks.update_student_course_grade.delay(
+        #     student_id=data.student_id, lesson_id=data.lesson_id, score=exam_attempt.attempt_score
+        # )
+        tasks.complete_student_course.delay(lesson_id=data.lesson_id, student_id=data.student_id)
 
         return {"Message": f"Your exam was submitted. Score - {exam_attempt.attempt_score}"}
 

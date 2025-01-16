@@ -120,7 +120,7 @@ async def get_courses(
         return repository.select_all_courses()
 
 
-@router.get("/popular", response_model=list[CourseResponse])
+@router.get("/most_popular", response_model=list[CourseDetailResponse])
 async def get_popular_course(db: Session = Depends(get_db)):
     repository = CourseRepository(db=db)
     return repository.select_popular_course()

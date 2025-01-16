@@ -37,6 +37,8 @@ class CourseCreate(BaseModel):
     intro_text: str
     skills_text: str
     about_text: str
+    about_main_text: str
+    program_text: str
     c_type: Optional[str] = None
     c_duration: Optional[str] = None
     c_award: Optional[str] = None
@@ -54,12 +56,15 @@ class CourseUpdate(BaseModel):
     intro_text: Optional[str] = None
     skills_text: Optional[str] = None
     about_text: Optional[str] = None
+    about_main_text: Optional[str] = None
+    program_text: Optional[str] = None
     c_type: Optional[str] = None
     c_duration: Optional[str] = None
     c_award: Optional[str] = None
     c_language: Optional[str] = None
     c_level: Optional[str] = None
     c_access: Optional[str] = None
+
 
 
 class CourseResponse(BaseModel):
@@ -72,6 +77,8 @@ class CourseResponse(BaseModel):
     intro_text: str
     skills_text: str
     about_text: str
+    about_main_text: Optional[str] = None
+    program_text: Optional[str] = None
     c_type: str
     c_duration: str
     c_award: str

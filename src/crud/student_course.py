@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session, aliased
 
 from src.crud.student_lesson import select_student_lesson_db, create_student_lesson_db
 from src.enums import CourseStatus, LessonStatus, LessonType
-from src.models import CourseOrm, StudentCourseAssociation
+from src.models import CourseOrm, StudentCourseAssociation, CategoryOrm
 from src.crud.lesson import LessonRepository
+
 
 def select_student_course_info(db: Session, student_id: int, course: CourseOrm):
     student_course = (db.query(StudentCourseAssociation.grade.label("grade"),
@@ -141,3 +142,18 @@ def create_student_lesson(
                     lesson_id=lesson.id,
                     status=LessonStatus.available
                 )
+
+def check_competed_category(db: Session, student_id: int, category_id: int) -> bool:
+    category_courses = (db.query(CourseOrm.id)
+                        .filter(CourseOrm.category_id == category_id)
+                        .filter(CourseOrm.is_published)
+                        .all())
+
+    category_course_ids = {course_id for course_id, in category_courses}
+    completed_courses = (db.query(StudentCourseAssociation.course_id)
+                         .filter(StudentCourseAssociation.student_id == student_id)
+                         .filter(StudentCourseAssociation.status == CourseStatus.completed.value)
+                         .all())
+
+    completed_course_ids = {course_id for course_id, in completed_courses}
+    return category_course_ids.issubset(completed_course_ids)

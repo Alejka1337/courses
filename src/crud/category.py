@@ -73,3 +73,6 @@ class CategoryRepository:
 
     def select_category_discount(self, category_id):
         return self.db.query(self.model.discount).filter(self.model.id == category_id).scalar()
+
+    def select_category_name_by_id(self, category_id: int):
+        return self.db.query(self.model.title).filter(self.model.id == category_id).scalar()

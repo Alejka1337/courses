@@ -266,3 +266,6 @@ class UserRepository:
         courses = (self.db.query(self.course_model).filter(self.course_model.student_id == student.id).all())
 
         return student, image, courses
+
+    def select_student_name_by_id(self, student_id: int):
+        return self.db.query(self.student_model).filter(self.student_model.id == student_id).first()
