@@ -19,7 +19,6 @@ def set_info_me(user: UserOrm, student: StudentOrm, image: ImageOrm, courses: li
         "changed_surname": student.changed_surname,
         "courses": [],
         "chats": student.chats,
-        "certificates": student.course_certificates
     }
 
     for course in courses:

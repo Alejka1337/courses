@@ -99,7 +99,10 @@ class CertificateWriter:
         dir_name = 'static/certificates/courses/'
         os.makedirs(dir_name, exist_ok=True)
 
-        filename = f"{dir_name}{self.student_name}.docx"
+        file_id = seria.replace(' ', '-')
+        file_id = file_id.replace('/', '-')
+
+        filename = f"{dir_name}{file_id}.docx"
         doc.save(filename)
         return dir_name, filename
 
@@ -159,7 +162,7 @@ class CertificateWriter:
                     # Формируем строку для текущей пары курсов
                     for j, course in enumerate(pair):
                         if j > 0:  # Добавляем пробелы перед вторым элементом пары
-                            new_p.add_run("    ")  # 4 пробела
+                            new_p.add_run("      ")  # 4 пробела
                         new_p.add_run(u"\u25aa ")  # Добавляем символ
                         new_p.add_run(f"{course}")  # Добавляем название курса
 
@@ -168,7 +171,7 @@ class CertificateWriter:
 
                 color = doc_manager.hex_to_rgb("#001C54")
                 doc_manager.set_paragraph_text_color(new_p, *color)
-                doc_manager.set_paragraph_font_size(new_p, 14)
+                doc_manager.set_paragraph_font_size(new_p, 12)
                 doc_manager.set_paragraph_font_name(new_p, "Inter")
                 doc_manager.set_paragraph_alignment(new_p, 'center')
                 doc_manager.set_paragraph_italic(new_p)
@@ -180,6 +183,9 @@ class CertificateWriter:
         dir_name = 'static/certificates/categories/'
         os.makedirs(dir_name, exist_ok=True)
 
-        filename = f"{dir_name}{self.student_name}.docx"
+        file_id = seria.replace(' ', '-')
+        file_id = file_id.replace('/', '-')
+
+        filename = f"{dir_name}{file_id}.docx"
         doc.save(filename)
         return dir_name, filename

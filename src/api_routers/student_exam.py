@@ -84,11 +84,11 @@ async def submit_exam_attempt(
         )
 
         # celery logic
-        # tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        # tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
-        # tasks.update_student_course_grade.delay(
-        #     student_id=data.student_id, lesson_id=data.lesson_id, score=exam_attempt.attempt_score
-        # )
+        tasks.update_student_lesson_status.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        tasks.update_student_course_progress.delay(student_id=data.student_id, lesson_id=data.lesson_id)
+        tasks.update_student_course_grade.delay(
+            student_id=data.student_id, lesson_id=data.lesson_id, score=exam_attempt.attempt_score
+        )
         tasks.complete_student_course.delay(lesson_id=data.lesson_id, student_id=data.student_id)
 
         return {"Message": f"Your exam was submitted. Score - {exam_attempt.attempt_score}"}

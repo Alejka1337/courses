@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from src.celery_tasks import tasks
+from src.crud.certificate import  CertificateRepository
 from src.crud.category import CategoryRepository
 from src.crud.chat import select_chats_for_moderator
 from src.crud.course import CourseRepository
@@ -540,6 +541,10 @@ async def info_me(
 
         notes_repository = NotesRepository(db=db)
         response["my_notes"] = notes_repository.select_folder_with_notes(student_id=student.id)
+
+        certificate_repository = CertificateRepository(db=db)
+        response["certificates"] = certificate_repository.select_student_certificate(student_id=student.id)
+
         return response
 
     else:

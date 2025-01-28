@@ -1,3 +1,4 @@
+from urllib.parse import quote
 import stripe
 
 from src.config import STRIPE_SECRET_KEY, DOMAIN, STRIPE_WEBHOOK
@@ -8,7 +9,8 @@ stripe.api_key = STRIPE_SECRET_KEY
 
 def create_new_product(name, image_path):
     if image_path:
-        image = f"{DOMAIN}/{image_path}"
+        encoded_image_path = quote(image_path)
+        image = f"{DOMAIN}/api/{encoded_image_path}"
         stripe_product = stripe.Product.create(name=name, images=[image,])
     else:
         stripe_product = stripe.Product.create(name=name)
@@ -71,7 +73,7 @@ def create_checkout(
             line_items=line_items,
             metadata=metadata,
             mode="payment",
-            customer_email="dmitrjialekseev16@gmail.com",
+            customer_email="info@ieu.edu.ua",
             discounts=discounts,
         )
 
@@ -82,7 +84,7 @@ def create_checkout(
             line_items=line_items,
             metadata=metadata,
             mode="payment",
-            customer_email="dmitrjialekseev16@gmail.com",
+            customer_email="info@ieu.edu.ua",
         )
 
     return checkout.url
@@ -143,3 +145,7 @@ def retrieve_payment_intent(payment_intent):
     payment_intent = payment_intent[:secret_start]
     data = stripe.PaymentIntent.retrieve(payment_intent)
     return data.metadata
+
+def retrieve_checkout_session(session_id):
+    session = stripe.checkout.Session.retrieve(session_id)
+    return session.metadata

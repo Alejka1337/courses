@@ -254,10 +254,8 @@ class UserRepository:
         self.db.refresh(student)
 
     def select_user_dashboard_info(self, user_id: int):
-
         student = (self.db.query(self.student_model)
                    .options(joinedload(self.student_model.chats))
-                   .options(joinedload(self.student_model.course_certificates))
                    .filter(self.student_model.user_id == user_id)
                    .first())
 

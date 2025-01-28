@@ -53,7 +53,7 @@ from src.utils.smtp import send_mail_with_code
 from src.utils.speaches import (
     initial_boto,
     synthesize_female_speech,
-    synthesize_male_speech
+    synthesize_male_speech, generate_female_audio_from_text, generate_male_audio_from_text
 )
 from src.utils.stripe_logic import (
     create_new_product,
@@ -308,13 +308,7 @@ class CeleryTasks:
             writer = CertificateWriter(
                 cert_type='category',
                 student_name=student_name,
-                courses_list=[
-                    "Business analytics",
-                    "Operations Management",
-                    "Business Ethics",
-                    "Human Resource Management",
-                    "Business Administration"
-                ],
+                courses_list=courses_list,
                 category_name=category_name
             )
             dir_name, docx_path = writer.write_category_certificate_data()
@@ -326,7 +320,6 @@ class CeleryTasks:
                 student_id=student_id,
                 category_id=course.category_id
             )
-
 
 
     @celery_app.task(bind=True, base=DatabaseTask, queue=CeleryQueues.tts)
@@ -349,18 +342,17 @@ class CeleryTasks:
         polly = initial_boto()
 
         output_path_male = os.path.join(folder, "male.mp3")
-        synthesize_male_speech(
-            text=lecture_text,
-            file_path=output_path_male,
+        generate_male_audio_from_text(
+            full_text=lecture_text,
+            output_path=output_path_male,
             polly=polly
         )
-
         result.append(output_path_male)
 
         output_path_female = os.path.join(folder, "female.mp3")
-        synthesize_female_speech(
-            text=lecture_text,
-            file_path=output_path_female,
+        generate_female_audio_from_text(
+            full_text=lecture_text,
+            output_path=output_path_female,
             polly=polly
         )
         result.append(output_path_female)

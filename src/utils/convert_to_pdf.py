@@ -4,7 +4,13 @@ import re
 
 
 def convert_to_pdf(folder, source, timeout=None):
-    args = [libreoffice_exec(), '--headless', '--convert-to', 'pdf', '--outdir', folder, source]
+    args = [
+        libreoffice_exec(),
+        '--headless',
+        '--convert-to', 'pdf',
+        '--outdir', folder,
+        source
+    ]
 
     process = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
     re.search('-> (.*?) using filter', process.stdout.decode())

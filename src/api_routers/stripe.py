@@ -11,7 +11,8 @@ from src.utils.stripe_logic import (
     get_customer,
     create_ephemeral_key,
     retrieve_session,
-    retrieve_payment_intent
+    retrieve_payment_intent,
+    retrieve_checkout_session
 )
 from src.celery_tasks import tasks
 from src.crud.stripe import StripeCourseRepository
@@ -56,17 +57,20 @@ async def change_card(
 
     return {"link": checkout_link}
 
-
-@router.post("/course-subscribe")
-async def course_subscribe(
-        payment_intent: str,
+@router.post("/course-subscribe/desktop")
+async def course_subscribe_desktop(
+        session_id: str,
         db: Session = Depends(get_db),
 ):
-    metadata = retrieve_payment_intent(payment_intent)
+    metadata = retrieve_checkout_session(session_id)
     student_id = int(metadata["student_id"])
+    items_id = []
+
     for key, value in metadata.items():
         if key.startswith("item"):
             course_id = int(value)
+            items_id.append(course_id)
+
             subscribe_student_to_course_db(
                 db=db,
                 student_id=student_id,
@@ -79,7 +83,36 @@ async def course_subscribe(
                 course_id=course_id
             )
 
-    return {"status": "Successfully subscribed"}
+    return {"status": "Successfully subscribed", "items": items_id}
+
+
+@router.post("/course-subscribe/app")
+async def course_subscribe_app(
+        payment_intent: str,
+        db: Session = Depends(get_db),
+):
+    metadata = retrieve_payment_intent(payment_intent)
+    student_id = int(metadata["student_id"])
+    items_id = []
+
+    for key, value in metadata.items():
+        if key.startswith("item"):
+            course_id = int(value)
+            items_id.append(course_id)
+
+            subscribe_student_to_course_db(
+                db=db,
+                student_id=student_id,
+                course_id=course_id
+            )
+
+            create_student_lesson(
+                db=db,
+                student_id=student_id,
+                course_id=course_id
+            )
+
+    return {"status": "Successfully subscribed", "items": items_id}
 
 @router.post("/mobile/cart")
 async def change_cart_mobile(
@@ -142,21 +175,21 @@ async def stripe_webhook(
     except Exception as e:
         raise HTTPException(422, detail=str(e))
 
-    data = event["data"]["object"]
-    if event["type"] == "checkout.session.completed":
-        metadata = convert_to_dict(data["metadata"])
-        student_id = int(metadata["student_id"])
-
-        for key, value in metadata.items():
-            if key.startswith("item"):
-                course_id = int(value)
-                subscribe_student_to_course_db(
-                    db=db,
-                    student_id=student_id,
-                    course_id=course_id
-                )
-
-                tasks.create_student_lesson.delay(
-                    student_id=student_id,
-                    course_id=course_id
-                )
+    # data = event["data"]["object"]
+    # if event["type"] == "checkout.session.completed":
+    #     metadata = convert_to_dict(data["metadata"])
+    #     student_id = int(metadata["student_id"])
+    #
+    #     for key, value in metadata.items():
+    #         if key.startswith("item"):
+    #             course_id = int(value)
+    #             subscribe_student_to_course_db(
+    #                 db=db,
+    #                 student_id=student_id,
+    #                 course_id=course_id
+    #             )
+    #
+    #             tasks.create_student_lesson.delay(
+    #                 student_id=student_id,
+    #                 course_id=course_id
+    #             )
