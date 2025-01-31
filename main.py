@@ -23,6 +23,7 @@ from src.api_routers.user import router as user_router
 from src.api_routers.template import router as template_router
 from src.api_routers.notes import router as note_router
 from src.api_routers.stripe import router as stripe_router
+from src.api_routers.certificates import router as certificates_router
 from src.config import API_PREFIX
 
 http_bearer = HTTPBearer(auto_error=False)
@@ -85,9 +86,8 @@ app.include_router(
     note_router, prefix=API_PREFIX, tags=["Note"], dependencies=[Depends(http_bearer)]
 )
 
-app.include_router(
-    stripe_router, prefix=API_PREFIX, tags=["Stripe"]
-)
+app.include_router(certificates_router, prefix=API_PREFIX, tags=["Certificates"])
+app.include_router(stripe_router, prefix=API_PREFIX, tags=["Stripe"])
 
 origins = [
     "http://localhost",
@@ -97,6 +97,7 @@ origins = [
     "https://vps2.xyz",
     "http://192.168.0.151:8100/",
     "http://localhost:3000/",
+
 ]
 
 app.add_middleware(

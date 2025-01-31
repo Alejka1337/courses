@@ -10,7 +10,7 @@ from src.crud.student_lesson import (
 from src.models import UserOrm
 from src.schemas.student_practical import (
     ExamResponse,
-    StudentPractical,
+    StudentExam,
     SubmitStudentPractical,
 )
 from src.session import get_db
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/student-exam")
 
 @router.post("/send", response_model=ExamResponse)
 async def confirm_student_exam(
-        data: StudentPractical,
+        data: StudentExam,
         db: Session = Depends(get_db),
         user: UserOrm = Depends(get_current_user)
 ):

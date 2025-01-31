@@ -90,6 +90,7 @@ class CertificateRepository:
 
                 certificates[row.category_id] = {
                     "category_name": row.category_name,
+                    "category_id": row.category_id,
                     "category_certificate_id": row.category_certificate_id,
                     "category_certificate_link": category_certificate_link,
                     "course_certificate_data": [],
@@ -99,6 +100,7 @@ class CertificateRepository:
             if row.course_name and row.course_certificate_link:
                 certificates[row.category_id]["course_certificate_data"].append({
                     "course_name": row.course_name,
+                    "course_id": row.course_id,
                     "course_certificate_id": row.course_certificate_id,
                     "course_certificate_link": row.course_certificate_link,
                 })

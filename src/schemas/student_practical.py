@@ -32,6 +32,9 @@ class StudentPractical(BaseModel):
     lesson_id: PositiveInt
     student_answers: List[Union[StudentAnswer, StudentAnswers, StudentMatchingList]]
 
+class StudentExam(StudentPractical):
+    spent_minutes: int
+
 
 class SubmitStudentPractical(BaseModel):
     attempt_id: PositiveInt
@@ -47,6 +50,7 @@ class NewAttempt(BaseModel):
 
 class ExamNewAttempt(NewAttempt):
     exam_id: PositiveInt
+    spent_minutes: int
 
 
 class TestNewAttempt(NewAttempt):

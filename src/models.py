@@ -251,6 +251,7 @@ class StudentExamAttemptsOrm(Base):
     id: Mapped[intpk]
     attempt_number: Mapped[int]
     attempt_score: Mapped[Optional[int]]
+    spent_minutes: Mapped[Optional[int]]
     exam_id: Mapped[int] = mapped_column(ForeignKey("exams.id"))
     student_id: Mapped[int] = mapped_column(ForeignKey("students.id"))
 

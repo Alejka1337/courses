@@ -30,6 +30,7 @@ class AssessmentManager:
         self._db = db
         self._student_id = student_id
         self._final_score = 0
+        self._spent_minutes = getattr(data, 'spent_minutes', None)
         self._assessment_id = self.get_assessment_id()
 
     @property
@@ -58,11 +59,6 @@ class AssessmentManager:
 
     def format_attempt_data(self, number: int):
         raise NotImplementedError("This method should be implemented in subclasses")
-
-    def create_new_attempt(self, number: int) -> int:
-        format_data = self.format_attempt_data(number=number)
-        new_attempt = self.student_repository.create_attempt(attempt_data=format_data)
-        return new_attempt.id
 
     def update_attempt_score(self, attempt_id: int):
         raise NotImplementedError("This method should be implemented in subclasses")
@@ -182,6 +178,11 @@ class ExamManager(AssessmentManager):
     def get_student_repository(self) -> StudentExamRepository:
         return StudentExamRepository(db=self._db)
 
+    def create_new_attempt(self, number: int) -> int:
+        format_data = self.format_attempt_data(number=number)
+        new_attempt = self.student_repository.create_attempt(attempt_data=format_data)
+        return new_attempt.id
+
     def get_attempt_number(self) -> int:
         last_attempt = self.student_repository.select_last_attempt_number(
             student_id=self._student_id,
@@ -201,7 +202,8 @@ class ExamManager(AssessmentManager):
             attempt_number=number,
             attempt_score=self._final_score,
             exam_id=self._assessment_id,
-            student_id=self._student_id
+            student_id=self._student_id,
+            spent_minutes=self._spent_minutes
         )
         return new_attempt_detail
 
